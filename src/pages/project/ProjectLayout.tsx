@@ -5,7 +5,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import type { Project, StepId } from '@/data/types';
 import { STEP_IDS } from '@/data/types';
 import { ProgressRing } from '@/components/charts';
-import { currentStep, progressOf, STEPS, stepStatus } from '@/lib/engine';
+import { currentStep, NEXT_ACTION, progressOf, STEPS, stepStatus } from '@/lib/engine';
 import { now, useProjects } from '@/state/ProjectStore';
 
 interface Ctx {
@@ -55,7 +55,7 @@ export default function ProjectLayout() {
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-5 px-4 py-5 sm:px-6">
           <ProgressRing value={prog.pct} size={76} stroke={7} label="Progress" dark />
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-bold tracking-[0.22em] text-champagne-300">PROJECT</div>
+            <div className="text-[10px] font-bold tracking-[0.22em] text-champagne-300">AI PRODUCT DEVELOPMENT</div>
             <div className="truncate text-xl font-semibold uppercase tracking-wide sm:text-2xl">{project.name}</div>
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-200">
               <span>
@@ -68,6 +68,19 @@ export default function ProjectLayout() {
                 단계 {prog.stepsDone}/{prog.stepsTotal} · 체크리스트 {prog.checks}/{prog.checksTotal}
               </span>
             </div>
+            <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 sm:flex sm:flex-wrap">
+              {[
+                { label: 'Target', value: project.intake.target.value },
+                { label: 'Category', value: project.intake.category.value.split(' > ').pop() },
+                { label: 'Price', value: project.intake.price.value },
+                { label: 'Channel', value: project.intake.channel.value },
+              ].map((f) => (
+                <div key={f.label} className="min-w-0">
+                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-ink-300">{f.label}</dt>
+                  <dd className="truncate text-sm font-medium text-white">{f.value || '미입력'}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
           <Link to="/projects" className="rounded-lg px-3 py-1.5 text-xs text-ink-200 ring-1 ring-white/20 hover:bg-white/10">
             모든 프로젝트
@@ -93,8 +106,8 @@ export default function ProjectLayout() {
               <span />
             )}
             {next && (
-              <Link to={`/projects/${project.id}/${next.id}`} className="flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800">
-                다음: {next.no} {next.label} <ArrowRight size={15} />
+              <Link to={`/projects/${project.id}/${next.id}`} className="flex items-center gap-2 rounded-xl bg-ink-900 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-ink-800 sm:text-[15px]">
+                {NEXT_ACTION[next.id].cta} <ArrowRight size={16} />
               </Link>
             )}
           </div>

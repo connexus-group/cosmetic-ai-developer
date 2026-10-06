@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect } from 'react';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
 import { lazyWithRetry as lazy, prefetchRoutes } from './lib/lazy';
 
@@ -15,6 +15,12 @@ function ScrollToTop() {
   return null;
 }
 
+/** Short alias: /project/pdrn-firming-ampoule → /projects/pdrn-firming-ampoule/overview */
+function ProjectAlias() {
+  const { id, step } = useParams();
+  return <Navigate to={`/projects/${id}/${step ?? 'overview'}`} replace />;
+}
+
 export default function App() {
   useEffect(() => prefetchRoutes(), []);
   return (
@@ -28,6 +34,8 @@ export default function App() {
           <Route path="projects/:id/:step" element={<ProjectLayout />}>
             <Route index element={<StepPage />} />
           </Route>
+          <Route path="project/:id" element={<ProjectAlias />} />
+          <Route path="project/:id/:step" element={<ProjectAlias />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

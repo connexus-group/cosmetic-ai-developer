@@ -6,7 +6,7 @@ import { CLARIFY_QUESTIONS } from '@/data/mock';
 import type { IntakeKey } from '@/data/types';
 import { ProgressRing } from '@/components/charts';
 import { Card, KindBadge, PageIntro, Section } from '@/components/ui';
-import { conceptOf, currentStep, formulaOf, packageOf, progressOf, STEPS, stepStatus } from '@/lib/engine';
+import { conceptOf, currentStep, formulaOf, NEXT_ACTION, packageOf, progressOf, STEPS, stepStatus } from '@/lib/engine';
 import { INTAKE_LABELS } from '@/lib/intake';
 import { answerLabel } from '@/state/ProjectStore';
 import { useProject } from '../ProjectLayout';
@@ -31,6 +31,21 @@ export default function Overview() {
     <div className="space-y-6">
       <PageIntro no="01" title="Overview" ko="프로젝트 개요" question="지금 어디까지 왔고, 다음에 무엇을 하면 될까요?" />
 
+      <Card className="relative overflow-hidden border-champagne-300 bg-gradient-to-br from-white to-champagne-100/50 p-6 sm:p-8">
+        <div className="text-[11px] font-bold tracking-[0.25em] text-champagne-700">NEXT STEP</div>
+        <div className="mt-2 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="text-xs font-semibold text-slate-500">
+              STEP {cur.no} · {cur.label}
+            </div>
+            <div className="mt-1 text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">{NEXT_ACTION[cur.id].question}</div>
+          </div>
+          <Link to={`/projects/${p.id}/${cur.id}`} className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-ink-900 px-6 py-3.5 text-[15px] font-semibold text-white shadow-md hover:bg-ink-800">
+            {NEXT_ACTION[cur.id].cta} <ArrowRight size={17} />
+          </Link>
+        </div>
+      </Card>
+
       <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
         <Card className="flex flex-col justify-between gap-5 p-6 sm:flex-row sm:items-center">
           <div className="flex items-center gap-5">
@@ -43,9 +58,6 @@ export default function Overview() {
               </div>
             </div>
           </div>
-          <Link to={`/projects/${p.id}/${cur.id}`} className="flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-3 text-sm font-medium text-white hover:bg-ink-800">
-            다음 단계: {cur.no} {cur.label} <ArrowRight size={15} />
-          </Link>
         </Card>
         <Card className="grid grid-cols-3 divide-x divide-ink-50 p-0">
           {[
@@ -61,26 +73,36 @@ export default function Overview() {
         </Card>
       </div>
 
-      <Section title="개발 프로세스" subtitle="각 단계를 눌러 언제든 이동할 수 있어요. 앞 단계를 고치면 영향을 받는 단계에 '재검토 필요'가 표시됩니다.">
+      <Section
+        title="개발 프로세스"
+        subtitle="각 단계를 눌러 언제든 이동할 수 있어요. 앞 단계를 고치면 영향을 받는 단계에 '재검토 필요'가 표시됩니다."
+        action={
+          <div className="flex flex-wrap gap-3 text-[11px] text-slate-600">
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-ink-200" /> 완료</span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-ink-900" /> 현재 단계</span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm border border-ink-200 bg-white" /> 예정</span>
+          </div>
+        }
+      >
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {STEPS.map((s) => {
             const st = stepStatus(p, s.id);
+            const isCur = s.id === cur.id;
             return (
               <Link
                 key={s.id}
                 to={`/projects/${p.id}/${s.id}`}
                 className={clsx(
                   'rounded-xl border p-3 transition hover:-translate-y-0.5 hover:shadow-sm',
-                  st === 'done' ? 'border-ink-200 bg-ink-50/60' : st === 'stale' ? 'border-amber-200 bg-amber-50/60' : 'border-ink-100 bg-white',
-                  s.id === cur.id && 'ring-2 ring-champagne-300',
+                  isCur ? 'border-ink-900 bg-ink-900 text-white shadow-md' : st === 'done' ? 'border-ink-200 bg-ink-100/70' : st === 'stale' ? 'border-amber-200 bg-amber-50/60' : 'border-dashed border-ink-200 bg-white',
                 )}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold tabular-nums text-slate-400">{s.no}</span>
-                  {st === 'done' ? <Check size={14} className="text-ink-700" /> : st === 'stale' ? <AlertCircle size={14} className="text-amber-600" /> : null}
+                  <span className={clsx('text-[11px] font-bold tabular-nums', isCur ? 'text-champagne-300' : 'text-slate-400')}>{s.no}</span>
+                  {st === 'done' ? <Check size={14} className="text-ink-700" /> : st === 'stale' ? <AlertCircle size={14} className="text-amber-600" /> : isCur ? <ArrowRight size={14} className="text-champagne-300" /> : null}
                 </div>
-                <div className="mt-1 text-sm font-semibold text-ink-900">{s.label}</div>
-                <div className="text-[11px] text-slate-500">{st === 'done' ? '완료' : st === 'stale' ? '재검토 필요' : s.id === cur.id ? '진행할 차례' : '미완료'}</div>
+                <div className={clsx('mt-1 text-sm font-semibold', isCur ? 'text-white' : st === 'todo' ? 'text-slate-500' : 'text-ink-900')}>{s.label}</div>
+                <div className={clsx('text-[11px]', isCur ? 'text-ink-200' : 'text-slate-500')}>{st === 'done' ? '완료' : st === 'stale' ? '재검토 필요' : isCur ? '현재 단계' : '예정'}</div>
               </Link>
             );
           })}

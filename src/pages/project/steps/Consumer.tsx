@@ -42,7 +42,11 @@ export default function Consumer() {
                 <KeywordList title="Pain Points" subtitle="소비자가 불만인 점 · 눌러서 추이 보기" items={data.pains} active={pain} onPick={setPain} tone="pain" />
               </div>
 
-              <Section title={`"${pos}"와 "${pain}" 언급은 어떻게 변하고 있나요?`} subtitle="월별 리뷰 언급 수" action={<DemoBadge />}>
+              <Section title="Review Keywords" subtitle="리뷰에서 많이 나온 키워드 · 글자가 클수록 언급이 많아요 · 눌러서 추이 보기" action={<DemoBadge />}>
+                <KeywordCloud positives={data.positives} pains={data.pains} pos={pos} pain={pain} onPos={setPos} onPain={setPain} />
+              </Section>
+
+              <Section title={`Consumer Trend · "${pos}"와 "${pain}" 언급은 어떻게 변하고 있나요?`} subtitle="월별 리뷰 언급 수" action={<DemoBadge />}>
                 <div className="h-72">
                   <ResponsiveContainer>
                     <LineChart data={series} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
@@ -113,5 +117,50 @@ function KeywordList({ title, subtitle, items, active, onPick, tone }: { title: 
         ))}
       </div>
     </Section>
+  );
+}
+
+function KeywordCloud({ positives, pains, pos, pain, onPos, onPain }: { positives: KeywordStat[]; pains: KeywordStat[]; pos: string; pain: string; onPos: (t: string) => void; onPain: (t: string) => void }) {
+  const all = [...positives.map((k) => ({ ...k, tone: 'pos' as const })), ...pains.map((k) => ({ ...k, tone: 'pain' as const }))];
+  const max = Math.max(...all.map((k) => k.mentions));
+  const min = Math.min(...all.map((k) => k.mentions));
+  // interleave so the two groups mix like a cloud, biggest in the middle
+  const sorted = [...all].sort((a, b) => b.mentions - a.mentions);
+  const arranged: typeof sorted = [];
+  sorted.forEach((k, i) => (i % 2 ? arranged.push(k) : arranged.unshift(k)));
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 py-4">
+        {arranged.map((k) => {
+          const t = max === min ? 1 : (k.mentions - min) / (max - min);
+          const active = k.tone === 'pos' ? k.term === pos : k.term === pain;
+          return (
+            <button
+              key={`${k.tone}-${k.term}`}
+              type="button"
+              onClick={() => (k.tone === 'pos' ? onPos(k.term) : onPain(k.term))}
+              title={`${k.term} · ${k.mentions.toLocaleString()}건 · ${k.change > 0 ? '+' : ''}${k.change}%`}
+              style={{ fontSize: `${13 + t * 17}px` }}
+              className={clsx(
+                'rounded-full px-3 py-1 font-semibold leading-tight transition',
+                k.tone === 'pos' ? 'bg-[#2a78d6]/10 text-ink-900 hover:bg-[#2a78d6]/20' : 'bg-[#eb6834]/10 text-ink-900 hover:bg-[#eb6834]/20',
+                active && (k.tone === 'pos' ? 'ring-2 ring-[#2a78d6]' : 'ring-2 ring-[#eb6834]'),
+              )}
+            >
+              {k.term}
+              <span className="ml-1 align-middle text-[10px] font-medium text-slate-500">{k.mentions.toLocaleString()}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex justify-center gap-4 text-xs text-slate-600">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#2a78d6]" /> 긍정 니즈
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#eb6834]" /> 불만
+        </span>
+      </div>
+    </div>
   );
 }

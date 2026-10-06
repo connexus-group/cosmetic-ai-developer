@@ -61,6 +61,16 @@ export const CLARIFY_QUESTIONS: ClarifyQuestion[] = [
 export const MARKET: MarketData = {
   title: '국내 안티에이징 앰플·세럼 시장',
   unit: '억원',
+  attractiveness: {
+    score: 82,
+    label: 'HIGH POTENTIAL',
+    factors: [
+      { label: '시장 규모', score: 88 },
+      { label: '성장성', score: 85 },
+      { label: '타깃 적합도', score: 90 },
+      { label: '경쟁 강도 (낮을수록 높음)', score: 58 },
+    ],
+  },
   series: [
     { year: '2022', value: 6200, estimate: false },
     { year: '2023', value: 6800, estimate: false },
@@ -70,7 +80,7 @@ export const MARKET: MarketData = {
   ],
   kpis: [
     { id: 'size', label: 'Market Size', value: '9,100억원', sub: '2026E 시장 규모', kind: 'AI_ESTIMATE' },
-    { id: 'growth', label: 'Growth', value: '+9.6%', sub: '2026E 전년 대비', kind: 'AI_ESTIMATE' },
+    { id: 'growth', label: 'Growth Rate', value: '+9.6%', sub: '2026E 전년 대비', kind: 'AI_ESTIMATE' },
     { id: 'cagr', label: 'CAGR', value: '10.1%', sub: '2022 → 2026E', kind: 'AI_ESTIMATE' },
     { id: 'competition', label: 'Competition', value: 'HIGH', sub: '최근 1년 신제품 140여 개', kind: 'AI_ANALYSIS', level: 'HIGH' },
     { id: 'opportunity', label: 'Opportunity', value: 'MEDIUM–HIGH', sub: '저자극·복합 효능 영역', kind: 'AI_ANALYSIS', level: 'MEDIUM' },
@@ -99,11 +109,11 @@ export const MARKET: MarketData = {
   ],
   source: DEMO_SOURCE,
   insight: {
-    finding: '안티에이징 앰플 시장은 4년간 연평균 약 10% 성장했고, 2~4만원 중가대가 전체의 52%를 차지합니다.',
-    why: '목표 판매가 3만원대는 가장 큰 가격대에 속해 수요는 충분하지만, 같은 가격대 경쟁도 가장 치열합니다.',
-    opportunity: '30대 비중(38%)이 가장 높고, 올리브영과 자사몰 두 채널만으로 시장의 약 47%에 접근할 수 있습니다.',
-    risk: 'PDRN·콜라겐 단일 효능 제품은 이미 포화 단계라 단순 "탄력 앰플"로는 차별화가 어렵습니다.',
-    recommendation: '3만원 초반 가격을 유지하면서 "저자극 + 복합 안티에이징"처럼 두 가지 효능을 결합한 포지션을 우선 검토하세요.',
+    finding: '해당 카테고리는 최근 4년간 연평균 약 10%씩 지속적으로 성장하고 있습니다.',
+    why: '안티에이징 수요가 기존 40대 이상에서 20~30대로 확대되고 있습니다. 30대 구매 비중(38%)이 가장 높습니다.',
+    opportunity: '"Early Anti-aging" 포지션의 성장 가능성이 있습니다. 올리브영과 자사몰 두 채널만으로 시장의 약 47%에 접근할 수 있습니다.',
+    risk: 'PDRN 기반 제품 출시가 늘면서 경쟁이 빠르게 높아지고 있습니다 (최근 1년 신제품 140여 개).',
+    recommendation: '단순 PDRN 제품보다는 추가적인 차별화 성분 또는 제형 전략이 필요합니다.',
   },
 };
 

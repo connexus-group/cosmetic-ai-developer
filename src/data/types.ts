@@ -117,6 +117,8 @@ export interface Insight {
 export interface MarketData {
   title: string;
   unit: string;
+  /** Overall market attractiveness on a 0-100 scale, with the factors behind it. */
+  attractiveness: { score: number; label: string; factors: { label: string; score: number }[] };
   series: { year: string; value: number; estimate: boolean }[];
   kpis: { id: string; label: string; value: string; sub: string; kind: DataKind; level?: Level }[];
   channels: { name: string; share: number }[];

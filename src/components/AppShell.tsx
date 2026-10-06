@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import { FlaskConical, FolderKanban, Plus } from 'lucide-react';
+import { ErrorBoundary } from './ErrorBoundary';
 import { AnalyzingState } from './ui';
 
 export function AppShell() {
@@ -32,6 +33,7 @@ export function AppShell() {
           </nav>
         </div>
       </header>
+      <ErrorBoundary resetKey={pathname}>
       <Suspense
         key={pathname.split('/').slice(0, 3).join('/')}
         fallback={
@@ -42,6 +44,7 @@ export function AppShell() {
       >
         <Outlet />
       </Suspense>
+      </ErrorBoundary>
     </div>
   );
 }

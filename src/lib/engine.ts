@@ -33,6 +33,25 @@ export const STEPS: { id: StepId; no: string; label: string; ko: string; group: 
   { id: 'brief', no: '15', label: 'Development Brief', ko: '개발의뢰서', group: 'Plan' },
 ];
 
+/** What the user is asked to do next when a step is the next one, and the button that takes them there. */
+export const NEXT_ACTION: Record<StepId, { question: string; cta: string }> = {
+  overview: { question: '프로젝트 개요를 확인해 볼까요?', cta: '개요 보기' },
+  market: { question: '시장과 경쟁환경을 먼저 분석해볼까요?', cta: '시장 분석 시작' },
+  competitors: { question: '이미 팔리고 있는 경쟁제품을 살펴볼까요?', cta: '경쟁제품 분석하기' },
+  consumer: { question: '소비자가 무엇을 원하고 무엇이 불만인지 볼까요?', cta: '소비자 니즈 분석' },
+  trend: { question: '지금 뜨는 성분 트렌드를 확인해 볼까요?', cta: '트렌드 분석' },
+  opportunity: { question: '분석 결과를 모아 시장 기회를 찾아볼까요?', cta: '시장 기회 찾기' },
+  concept: { question: '기회를 바탕으로 제품 컨셉을 골라볼까요?', cta: '제품 컨셉 만들기' },
+  formula: { question: '컨셉에 맞는 제형을 정해볼까요?', cta: '제형 정하기' },
+  ingredients: { question: '어떤 원료가 들어가는지 확인해 볼까요?', cta: '원료 구성 보기' },
+  packaging: { question: '제품을 담을 용기를 골라볼까요?', cta: '패키지 고르기' },
+  cost: { question: '얼마에 만들어 얼마가 남는지 계산해 볼까요?', cta: '원가 계산하기' },
+  regulation: { question: '출시 전에 확인할 규제 사항을 볼까요?', cta: '규제 검토하기' },
+  testing: { question: '어떤 시험이 필요한지 정해볼까요?', cta: '시험 계획 세우기' },
+  timeline: { question: '출시까지 일정을 짜볼까요?', cta: '개발 일정 보기' },
+  brief: { question: '제조사에 보낼 개발의뢰서를 만들어 볼까요?', cta: '개발의뢰서 만들기' },
+};
+
 /** Which upstream decision each step depends on. A step opened before that decision changed needs review. */
 const DEPENDS: Partial<Record<StepId, (keyof Project['changed'])[]>> = {
   market: ['intake'],
