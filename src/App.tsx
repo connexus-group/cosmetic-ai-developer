@@ -11,7 +11,11 @@ const StepPage = lazy(() => import('./pages/project/StepPage'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
-  useLayoutEffect(() => window.scrollTo(0, 0), [pathname]);
+  // Braces matter: newer browsers return a Promise from scrollTo, and an effect
+  // that returns a non-function makes React crash when it runs the "cleanup".
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
   return null;
 }
 
@@ -22,7 +26,9 @@ function ProjectAlias() {
 }
 
 export default function App() {
-  useEffect(() => prefetchRoutes(), []);
+  useEffect(() => {
+    prefetchRoutes();
+  }, []);
   return (
     <>
       <ScrollToTop />
