@@ -2,7 +2,31 @@
 
 @theme {
   --font-sans: "Pretendard", "Inter", "Apple SD Gothic Neo", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
+  /* Brand: deep aubergine ink with a champagne highlight — beauty-tech, premium, restrained. */
+  --color-ink-50: #f7f5fa;
+  --color-ink-100: #eeeaf4;
+  --color-ink-200: #dcd4e8;
+  --color-ink-300: #bfb1d4;
+  --color-ink-400: #9b86b8;
+  --color-ink-500: #7a619c;
+  --color-ink-600: #634a84;
+  --color-ink-700: #4f3a6b;
+  --color-ink-800: #3b2b51;
+  --color-ink-900: #261b36;
+  --color-champagne-100: #f6efe4;
+  --color-champagne-300: #e3cfae;
+  --color-champagne-500: #c8a97e;
+  --color-champagne-700: #8f7148;
+  --color-canvas: #faf8f5;
 }
 
-html, body, #root { height: 100%; }
-body { @apply bg-stone-50 text-slate-800 antialiased; }
+html, body, #root { min-height: 100%; }
+body { @apply bg-canvas text-slate-800 antialiased; }
+
+.recharts-wrapper:focus, .recharts-surface:focus, .recharts-wrapper *:focus { outline: none; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .print-sheet { box-shadow: none !important; border: none !important; }
+}
