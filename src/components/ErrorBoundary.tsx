@@ -1,6 +1,12 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, Home, RotateCcw } from 'lucide-react';
 
+/** Error text plus where it happened, so a user can paste it back to us. */
+function report(error: Error) {
+  const where = (error.stack ?? '').split('\n').slice(0, 4).join('\n');
+  return `${error.name}: ${error.message}\n${typeof location !== 'undefined' ? location.pathname : ''}\n${where}`;
+}
+
 interface Props {
   children: ReactNode;
   /** Changing this value (e.g. the URL) clears a previous error so navigation recovers. */
@@ -37,7 +43,14 @@ export class ErrorBoundary extends Component<Props, State> {
         <AlertTriangle className="mx-auto text-rose-500" size={28} />
         <h2 className="mt-3 text-lg font-semibold text-ink-900">화면을 표시하는 중 문제가 생겼어요</h2>
         <p className="mt-1 text-sm text-slate-500">입력한 내용은 브라우저에 저장되어 있어요. 다시 시도하거나 처음 화면으로 돌아가 주세요.</p>
-        <pre className="mt-4 max-h-28 overflow-auto rounded-lg bg-ink-50 px-3 py-2 text-left text-[11px] text-slate-600">{error.message}</pre>
+        <pre className="mt-4 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-ink-50 px-3 py-2 text-left text-[11px] text-slate-600">{report(error)}</pre>
+        <button
+          type="button"
+          onClick={() => void navigator.clipboard?.writeText(report(error)).catch(() => undefined)}
+          className="mt-2 text-xs text-ink-600 underline underline-offset-2 hover:text-ink-900"
+        >
+          오류 내용 복사
+        </button>
         <div className="mt-5 flex justify-center gap-2">
           <button type="button" onClick={() => this.setState({ error: null })} className="flex items-center gap-1.5 rounded-xl border border-ink-100 px-4 py-2 text-sm text-ink-800 hover:bg-ink-50">
             <RotateCcw size={14} /> 다시 시도
