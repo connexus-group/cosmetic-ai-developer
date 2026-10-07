@@ -4,9 +4,8 @@ import clsx from 'clsx';
 import { AlertCircle, ArrowRight, Check, Pencil } from 'lucide-react';
 import { CLARIFY_QUESTIONS } from '@/data/mock';
 import type { IntakeKey } from '@/data/types';
-import { ProgressRing } from '@/components/charts';
-import { Card, KindBadge, PageIntro, Section } from '@/components/ui';
-import { conceptOf, currentStep, formulaOf, NEXT_ACTION, packageOf, progressOf, STEPS, stepStatus } from '@/lib/engine';
+import { KindBadge, PageIntro, Section } from '@/components/ui';
+import { conceptOf, currentStep, formulaOf, NEXT_ACTION, packageOf, PHASES, phaseOf, progressOf, STEPS, stepStatus } from '@/lib/engine';
 import { INTAKE_LABELS } from '@/lib/intake';
 import { answerLabel } from '@/state/ProjectStore';
 import { useProject } from '../ProjectLayout';
@@ -28,94 +27,110 @@ export default function Overview() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       <PageIntro no="01" title="Overview" ko="프로젝트 개요" question="지금 어디까지 왔고, 다음에 무엇을 하면 될까요?" />
 
-      <Card className="relative overflow-hidden border-champagne-300 bg-gradient-to-br from-white to-champagne-100/50 p-6 sm:p-8">
-        <div className="text-[11px] font-bold tracking-[0.25em] text-champagne-700">NEXT STEP</div>
-        <div className="mt-2 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="text-xs font-semibold text-slate-500">
-              STEP {cur.no} · {cur.label}
+      {/* Next step: the one thing to do now, larger than everything else on the page. */}
+      <section className="rounded-xl border border-wine-100 bg-white p-6 sm:p-10">
+        <div className="text-[13px] font-medium text-wine-700">Next step</div>
+        <div className="mt-3 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <div className="text-[13px] text-ink-500">
+              {phaseOf(cur.id).label} · Step {cur.no} {cur.label}
             </div>
-            <div className="mt-1 text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">{NEXT_ACTION[cur.id].question}</div>
+            <div className="mt-2 text-[26px] font-semibold leading-snug tracking-tight text-ink-900 sm:text-[32px]">{NEXT_ACTION[cur.id].question}</div>
           </div>
-          <Link to={`/projects/${p.id}/${cur.id}`} className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-ink-900 px-6 py-3.5 text-[15px] font-semibold text-white shadow-md hover:bg-ink-800">
+          <Link to={`/projects/${p.id}/${cur.id}`} className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-ink-900 px-7 py-4 text-[15px] font-medium text-white transition hover:bg-wine-800">
             {NEXT_ACTION[cur.id].cta} <ArrowRight size={17} />
           </Link>
         </div>
-      </Card>
+      </section>
 
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
-        <Card className="flex flex-col justify-between gap-5 p-6 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-5">
-            <ProgressRing value={prog.pct} size={112} stroke={10} label="Development" />
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Development Progress</div>
-              <div className="mt-1 text-3xl font-semibold text-ink-900">{prog.pct}%</div>
-              <div className="mt-1 text-xs text-slate-500">
-                분석·설계 단계 {prog.stepsDone}/{prog.stepsTotal} · 체크리스트 {prog.checks}/{prog.checksTotal}
-              </div>
-            </div>
+      <div className="grid gap-x-12 gap-y-8 py-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <div className="text-[13px] text-ink-500">Development progress</div>
+          <div className="mt-2 flex items-baseline gap-1">
+            <span className="font-display text-[72px] leading-none text-ink-900 tabular-nums">{prog.pct}</span>
+            <span className="font-display text-3xl text-ink-400">%</span>
           </div>
-        </Card>
-        <Card className="grid grid-cols-3 divide-x divide-ink-50 p-0">
-          {[
-            { label: 'Concept', value: concept?.name, to: 'concept' },
-            { label: 'Formula', value: formula?.name, to: 'formula' },
-            { label: 'Package', value: pkg?.name, to: 'packaging' },
-          ].map((x) => (
-            <Link key={x.label} to={`/projects/${p.id}/${x.to}`} className="p-5 hover:bg-ink-50/50">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{x.label}</div>
-              <div className={clsx('mt-2 text-sm font-semibold', x.value ? 'text-ink-900' : 'text-slate-400')}>{x.value ?? '아직 선택 전'}</div>
-            </Link>
-          ))}
-        </Card>
+          <div className="mt-3 h-1 overflow-hidden rounded-full bg-ink-100">
+            <div className="h-1 rounded-full bg-wine-600" style={{ width: `${prog.pct}%` }} />
+          </div>
+          <div className="mt-2 text-[13px] text-ink-500">
+            단계 {prog.stepsDone}/{prog.stepsTotal} · 체크리스트 {prog.checks}/{prog.checksTotal}
+          </div>
+        </div>
+        {[
+          { label: 'Concept', value: concept?.name, to: 'concept' },
+          { label: 'Formula', value: formula?.name, to: 'formula' },
+          { label: 'Package', value: pkg?.name, to: 'packaging' },
+        ].map((x) => (
+          <Link key={x.label} to={`/projects/${p.id}/${x.to}`} className="group border-t border-ink-200 pt-4 sm:border-t-0 sm:border-l sm:pl-8 sm:pt-0">
+            <div className="text-[13px] text-ink-500">{x.label}</div>
+            <div className={clsx('mt-3 text-lg font-semibold leading-snug', x.value ? 'text-ink-900' : 'text-ink-300')}>{x.value ?? '아직 선택 전'}</div>
+            <div className="mt-2 text-[13px] text-wine-700 opacity-0 transition group-hover:opacity-100">{x.value ? '변경하기' : '선택하러 가기'} →</div>
+          </Link>
+        ))}
       </div>
 
       <Section
-        title="개발 프로세스"
-        subtitle="각 단계를 눌러 언제든 이동할 수 있어요. 앞 단계를 고치면 영향을 받는 단계에 '재검토 필요'가 표시됩니다."
+        title="Development process"
+        subtitle="네 단계로 나뉜 15개 과정입니다. 언제든 눌러 이동할 수 있고, 앞 단계를 고치면 영향받는 단계에 '재검토'가 표시됩니다."
         action={
-          <div className="flex flex-wrap gap-3 text-[11px] text-slate-600">
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-ink-200" /> 완료</span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-ink-900" /> 현재 단계</span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm border border-ink-200 bg-white" /> 예정</span>
+          <div className="flex flex-wrap gap-4 text-[12px] text-ink-500">
+            <span className="flex items-center gap-1.5"><Check size={12} className="text-wine-600" /> 완료</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-wine-600" /> 현재 단계</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border border-ink-300" /> 예정</span>
           </div>
         }
       >
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-          {STEPS.map((s) => {
-            const st = stepStatus(p, s.id);
-            const isCur = s.id === cur.id;
+        <div className="grid gap-x-8 gap-y-8 sm:grid-cols-2 xl:grid-cols-4">
+          {PHASES.map((ph) => {
+            const done = ph.steps.filter((id) => stepStatus(p, id) === 'done').length;
             return (
-              <Link
-                key={s.id}
-                to={`/projects/${p.id}/${s.id}`}
-                className={clsx(
-                  'rounded-xl border p-3 transition hover:-translate-y-0.5 hover:shadow-sm',
-                  isCur ? 'border-ink-900 bg-ink-900 text-white shadow-md' : st === 'done' ? 'border-ink-200 bg-ink-100/70' : st === 'stale' ? 'border-amber-200 bg-amber-50/60' : 'border-dashed border-ink-200 bg-white',
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <span className={clsx('text-[11px] font-bold tabular-nums', isCur ? 'text-champagne-300' : 'text-slate-400')}>{s.no}</span>
-                  {st === 'done' ? <Check size={14} className="text-ink-700" /> : st === 'stale' ? <AlertCircle size={14} className="text-amber-600" /> : isCur ? <ArrowRight size={14} className="text-champagne-300" /> : null}
+              <div key={ph.id}>
+                <div className="flex items-baseline gap-2 border-b border-ink-100 pb-3">
+                  <span className="text-[12px] font-semibold tabular-nums text-wine-700">{ph.no}</span>
+                  <span className="font-semibold text-ink-900">{ph.label}</span>
+                  <span className="text-[13px] text-ink-400">{ph.ko}</span>
+                  <span className="ml-auto text-[12px] tabular-nums text-ink-400">
+                    {done}/{ph.steps.length}
+                  </span>
                 </div>
-                <div className={clsx('mt-1 text-sm font-semibold', isCur ? 'text-white' : st === 'todo' ? 'text-slate-500' : 'text-ink-900')}>{s.label}</div>
-                <div className={clsx('text-[11px]', isCur ? 'text-ink-200' : 'text-slate-500')}>{st === 'done' ? '완료' : st === 'stale' ? '재검토 필요' : isCur ? '현재 단계' : '예정'}</div>
-              </Link>
+                <ul className="mt-2">
+                  {ph.steps.map((id) => {
+                    const s = STEPS.find((x) => x.id === id)!;
+                    const st = stepStatus(p, id);
+                    const isCur = id === cur.id;
+                    return (
+                      <li key={id}>
+                        <Link
+                          to={`/projects/${p.id}/${id}`}
+                          className={clsx('-mx-2 flex items-center gap-3 rounded-md px-2 py-2.5 transition hover:bg-ink-50', isCur && 'bg-wine-50 hover:bg-wine-50')}
+                        >
+                          <span className={clsx('grid h-5 w-5 shrink-0 place-items-center rounded-full', st === 'done' ? 'bg-wine-50 text-wine-700' : isCur ? 'bg-wine-600' : st === 'stale' ? 'bg-amber-100' : 'border border-ink-200')}>
+                            {st === 'done' ? <Check size={11} /> : st === 'stale' ? <AlertCircle size={11} className="text-amber-700" /> : isCur ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}
+                          </span>
+                          <span className={clsx('text-[15px]', isCur ? 'font-semibold text-wine-800' : st === 'todo' ? 'text-ink-500' : 'text-ink-900')}>{s.label}</span>
+                          <span className="ml-auto text-[12px] text-ink-400">{st === 'done' ? '완료' : st === 'stale' ? '재검토' : isCur ? '현재 단계' : ''}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             );
           })}
         </div>
       </Section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-8 lg:grid-cols-2">
         <Section title="AI 요구사항 분석" subtitle="값을 누르면 수정할 수 있어요. 수정하면 이후 분석에 '재검토 필요'가 표시됩니다.">
           <div className="mb-4 rounded-xl bg-ink-50/60 px-4 py-3 text-sm text-ink-800">“{p.idea}”</div>
           <dl className="divide-y divide-ink-50">
             {(Object.keys(INTAKE_LABELS) as IntakeKey[]).map((k) => (
               <div key={k} className="group flex items-center gap-3 py-2.5">
-                <dt className="w-28 shrink-0 text-xs font-medium text-slate-500">{INTAKE_LABELS[k].en}</dt>
+                <dt className="w-28 shrink-0 text-xs font-medium text-ink-500">{INTAKE_LABELS[k].en}</dt>
                 <dd className="min-w-0 flex-1 text-sm font-medium text-ink-900">
                   {editing === k ? (
                     <input
@@ -128,7 +143,7 @@ export default function Overview() {
                   ) : (
                     <button type="button" onClick={() => setEditing(k)} className="flex items-center gap-2 text-left">
                       {p.intake[k].value}
-                      <Pencil size={11} className="text-slate-300 opacity-0 group-hover:opacity-100" />
+                      <Pencil size={11} className="text-ink-300 opacity-0 group-hover:opacity-100" />
                     </button>
                   )}
                 </dd>
@@ -143,8 +158,8 @@ export default function Overview() {
               const a = p.answers[q.id];
               return (
                 <div key={q.id} className="flex items-center gap-3 py-2.5">
-                  <dt className="flex-1 text-xs text-slate-500">{q.question}</dt>
-                  <dd className={clsx('text-sm font-medium', a && a.mode !== 'unknown' ? 'text-ink-900' : 'text-slate-400')}>{answerLabel(a)}</dd>
+                  <dt className="flex-1 text-xs text-ink-500">{q.question}</dt>
+                  <dd className={clsx('text-sm font-medium', a && a.mode !== 'unknown' ? 'text-ink-900' : 'text-ink-400')}>{answerLabel(a)}</dd>
                   {a?.mode === 'ai' && <KindBadge kind="AI_ESTIMATE" />}
                   {a?.mode === 'user' && <KindBadge kind="USER_INPUT" />}
                 </div>

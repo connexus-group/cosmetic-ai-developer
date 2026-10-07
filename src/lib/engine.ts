@@ -33,6 +33,16 @@ export const STEPS: { id: StepId; no: string; label: string; ko: string; group: 
   { id: 'brief', no: '15', label: 'Development Brief', ko: '개발의뢰서', group: 'Plan' },
 ];
 
+/** The four phases the 15 steps are grouped into for navigation. */
+export const PHASES: { id: string; no: string; label: string; ko: string; steps: StepId[] }[] = [
+  { id: 'discover', no: '01', label: 'Discover', ko: '시장 탐색', steps: ['overview', 'market', 'competitors', 'consumer', 'trend', 'opportunity'] },
+  { id: 'design', no: '02', label: 'Design', ko: '제품 설계', steps: ['concept', 'formula', 'ingredients', 'packaging'] },
+  { id: 'validate', no: '03', label: 'Validate', ko: '검증', steps: ['cost', 'regulation', 'testing'] },
+  { id: 'launch', no: '04', label: 'Launch', ko: '출시 준비', steps: ['timeline', 'brief'] },
+];
+
+export const phaseOf = (id: StepId) => PHASES.find((ph) => ph.steps.includes(id)) ?? PHASES[0];
+
 /** What the user is asked to do next when a step is the next one, and the button that takes them there. */
 export const NEXT_ACTION: Record<StepId, { question: string; cta: string }> = {
   overview: { question: '프로젝트 개요를 확인해 볼까요?', cta: '개요 보기' },

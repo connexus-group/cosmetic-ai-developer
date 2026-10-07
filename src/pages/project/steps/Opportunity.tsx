@@ -17,7 +17,7 @@ export default function Opportunity() {
   const { data } = useAsync(() => dataSource.gap(), 'gap');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       <PageIntro no="06" title="Market Gap & Opportunity" ko="시장 기회 분석" question="어느 영역에 제품을 출시해야 경쟁은 피하고 수요는 잡을 수 있을까요?" right={<DemoBadge />} />
       {!data ? (
         <AnalyzingState />
@@ -39,8 +39,8 @@ export default function Opportunity() {
                   <div>
                     <AiPill>AI RECOMMENDED POSITION</AiPill>
                     <div className="mt-3 text-2xl font-semibold text-ink-900">{rec.name}</div>
-                    <p className="mt-1 max-w-2xl text-sm text-slate-600">{rec.why}</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                    <p className="mt-1 max-w-2xl text-sm text-ink-600">{rec.why}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-ink-600">
                       <span>Demand <LevelBadge level={rec.demandLevel} /></span>
                       <span>Competition <LevelBadge level={rec.competitionLevel} /></span>
                       <span>Opportunity <LevelBadge level={rec.opportunityLevel} /></span>
@@ -48,7 +48,7 @@ export default function Opportunity() {
                   </div>
                   <div className="text-right">
                     <div className="text-5xl font-semibold tabular-nums text-ink-900">{rec.opportunityScore}</div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-ink-500">
                       Opportunity Score <KindBadge kind="AI_ESTIMATE" className="ml-1" />
                     </div>
                     <Link to={`/projects/${p.id}/concept`} className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-ink-900 px-4 py-2 text-sm font-medium text-white hover:bg-ink-800">
@@ -58,23 +58,23 @@ export default function Opportunity() {
                 </div>
               </Card>
 
-              <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+              <div className="grid gap-8 xl:grid-cols-[1.4fr_1fr]">
                 <Section title="수요와 경쟁으로 본 시장 지도" subtitle="오른쪽 위로 갈수록 수요는 높고 경쟁은 낮음 · 원 크기 = Opportunity Score" action={<DemoBadge />}>
                   <div className="h-[400px]">
                     <ResponsiveContainer>
                       <ScatterChart margin={{ top: 16, right: 24, bottom: 24, left: 4 }}>
                         <CartesianGrid stroke={GRID} />
-                        <ReferenceArea x1={45} x2={100} y1={60} y2={100} fill="#1baf7a" fillOpacity={0.07} stroke="#1baf7a" strokeOpacity={0.35} strokeDasharray="4 4" label={{ value: 'AI 추천 출시 영역', position: 'insideTopRight', fill: '#0f7a55', fontSize: 11, fontWeight: 600 }} />
-                        <ReferenceArea x1={0} x2={25} y1={60} y2={100} fill="#eb6834" fillOpacity={0.05} label={{ value: '레드오션', position: 'insideTopLeft', fill: '#b4532a', fontSize: 11 }} />
+                        <ReferenceArea x1={45} x2={100} y1={60} y2={100} fill="#4f7d5c" fillOpacity={0.07} stroke="#4f7d5c" strokeOpacity={0.35} strokeDasharray="4 4" label={{ value: 'AI 추천 출시 영역', position: 'insideTopRight', fill: '#0f7a55', fontSize: 11, fontWeight: 600 }} />
+                        <ReferenceArea x1={0} x2={25} y1={60} y2={100} fill="#8a2f4c" fillOpacity={0.05} label={{ value: '레드오션', position: 'insideTopLeft', fill: '#b4532a', fontSize: 11 }} />
                         <XAxis type="number" dataKey="lowComp" domain={[0, 100]} tick={{ fill: AXIS, fontSize: 11 }} label={{ value: '← 경쟁 높음 · Competition · 경쟁 낮음 →', position: 'insideBottom', offset: -14, fill: AXIS, fontSize: 11 }} />
                         <YAxis type="number" dataKey="demand" domain={[30, 100]} tick={{ fill: AXIS, fontSize: 11 }} width={40} label={{ value: 'Demand', angle: -90, position: 'insideLeft', fill: AXIS, fontSize: 11 }} />
                         <ZAxis type="number" dataKey="opportunityScore" range={[200, 1200]} />
                         <Tooltip content={({ active, payload }) => (active && payload?.[0] ? <GapTip g={payload[0].payload} /> : null)} />
                         <Scatter data={data.items.filter((g) => !g.recommended).map((g) => ({ ...g, lowComp: 100 - g.competition }))} fill={SERIES[0]} fillOpacity={0.65} stroke="#fff" strokeWidth={2}>
-                          <LabelList dataKey="name" position="bottom" offset={14} style={{ fill: '#261b36', fontSize: 11 }} />
+                          <LabelList dataKey="name" position="bottom" offset={14} style={{ fill: '#292524', fontSize: 11 }} />
                         </Scatter>
                         <Scatter data={[{ ...rec, lowComp: 100 - rec.competition }]} fill={SERIES[1]} stroke="#fff" strokeWidth={2}>
-                          <LabelList dataKey="name" position="bottom" offset={16} style={{ fill: '#261b36', fontSize: 12, fontWeight: 700 }} />
+                          <LabelList dataKey="name" position="bottom" offset={16} style={{ fill: '#292524', fontSize: 12, fontWeight: 700 }} />
                         </Scatter>
                       </ScatterChart>
                     </ResponsiveContainer>
@@ -104,7 +104,7 @@ export default function Opportunity() {
                       </div>
                     ))}
                   </div>
-                  <p className="mt-3 rounded-lg bg-ink-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
+                  <p className="mt-3 rounded-lg bg-ink-50 px-3 py-2 text-[11px] leading-relaxed text-ink-600">
                     계산식 공개: {data.formula}. 가중치는 데모용 가정이며 실제 데이터로 검증이 필요합니다.
                   </p>
                 </Section>
@@ -122,7 +122,7 @@ export default function Opportunity() {
                           <div className="font-semibold text-ink-900">{g.name}</div>
                           {g.recommended && <Sparkles size={15} className="text-champagne-500" />}
                         </div>
-                        <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-slate-500">
+                        <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-ink-500">
                           <div>
                             Demand
                             <LevelBadge level={g.demandLevel} className="mt-1 block w-fit" />
@@ -136,8 +136,8 @@ export default function Opportunity() {
                             <LevelBadge level={g.opportunityLevel} className="mt-1 block w-fit" />
                           </div>
                         </div>
-                        <p className="mt-3 text-xs leading-relaxed text-slate-600">{g.why}</p>
-                        <div className="mt-2 text-xs text-slate-500">
+                        <p className="mt-3 text-xs leading-relaxed text-ink-600">{g.why}</p>
+                        <div className="mt-2 text-xs text-ink-500">
                           Score <b className="tabular-nums text-ink-900">{g.opportunityScore}</b> · 성장 {g.growth}
                         </div>
                       </div>

@@ -8,12 +8,12 @@ import { useProjects } from '@/state/ProjectStore';
 export default function Projects() {
   const { projects, remove } = useProjects();
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <main className="mx-auto max-w-5xl px-4 py-14 sm:px-6">
+      <div className="mb-10 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="text-xs font-semibold tracking-[0.18em] text-champagne-700">MY PROJECTS</div>
-          <h1 className="mt-1 text-2xl font-semibold text-ink-900">내 제품 개발 프로젝트</h1>
-          <p className="mt-1 text-sm text-slate-500">프로젝트는 이 브라우저에 저장됩니다 (데모).</p>
+          <div className="text-[13px] font-medium text-wine-700">My projects</div>
+          <h1 className="font-display mt-2 text-[40px] leading-tight text-ink-900 sm:text-[48px]">내 제품 개발 프로젝트</h1>
+          <p className="mt-1 text-sm text-ink-500">프로젝트는 이 브라우저에 저장됩니다 (데모).</p>
         </div>
         <LinkButton to="/" variant="primary">
           <Plus size={15} /> 새 제품 개발
@@ -22,7 +22,7 @@ export default function Projects() {
       {projects.length === 0 ? (
         <Card className="p-10 text-center">
           <div className="text-base font-semibold text-ink-900">아직 프로젝트가 없어요</div>
-          <p className="mt-1 text-sm text-slate-500">만들고 싶은 화장품 아이디어를 입력해 첫 프로젝트를 시작하세요.</p>
+          <p className="mt-1 text-sm text-ink-500">만들고 싶은 화장품 아이디어를 입력해 첫 프로젝트를 시작하세요.</p>
           <LinkButton to="/" variant="primary" className="mt-5">
             아이디어 입력하기 <ArrowRight size={15} />
           </LinkButton>
@@ -36,10 +36,10 @@ export default function Projects() {
               <Card key={p.id} className="flex items-center gap-4 p-5">
                 <ProgressRing value={prog.pct} size={64} stroke={6} />
                 <div className="min-w-0 flex-1">
-                  <Link to={`/projects/${p.id}/overview`} className="block truncate font-semibold uppercase tracking-wide text-ink-900 hover:underline">
+                  <Link to={`/projects/${p.id}/overview`} className="block truncate font-semibold text-ink-900 hover:underline">
                     {p.name}
                   </Link>
-                  <div className="mt-0.5 truncate text-xs text-slate-500">{p.idea}</div>
+                  <div className="mt-0.5 truncate text-xs text-ink-500">{p.idea}</div>
                   <div className="mt-1 text-xs text-ink-600">
                     현재 단계 {cur.no} {cur.label} · {new Date(p.updatedAt).toLocaleDateString('ko-KR')}
                   </div>
@@ -48,7 +48,7 @@ export default function Projects() {
                   type="button"
                   aria-label="프로젝트 삭제"
                   onClick={() => window.confirm(`"${p.name}" 프로젝트를 삭제할까요?`) && remove(p.id)}
-                  className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                  className="rounded-lg p-2 text-ink-400 hover:bg-rose-50 hover:text-rose-600"
                 >
                   <Trash2 size={15} />
                 </button>

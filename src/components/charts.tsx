@@ -11,7 +11,7 @@ export function ProgressRing({ value, size = 88, stroke = 8, label, dark }: { va
   return (
     <div className="relative grid place-items-center" style={{ width: size, height: size }} role="img" aria-label={`진행률 ${value}%`}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={dark ? 'rgba(255,255,255,0.15)' : '#eeeaf4'} strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={dark ? 'rgba(255,255,255,0.15)' : '#ede8e2'} strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -27,7 +27,7 @@ export function ProgressRing({ value, size = 88, stroke = 8, label, dark }: { va
       </svg>
       <div className="absolute text-center">
         <div className={clsx('text-lg font-semibold tabular-nums', dark ? 'text-white' : 'text-ink-900')}>{value}%</div>
-        {label && <div className={clsx('text-[9px] uppercase tracking-wider', dark ? 'text-ink-200' : 'text-slate-500')}>{label}</div>}
+        {label && <div className={clsx('text-[9px] uppercase tracking-wider', dark ? 'text-ink-200' : 'text-ink-500')}>{label}</div>}
       </div>
     </div>
   );
@@ -40,7 +40,7 @@ export function TipBox({ title, rows }: { title?: ReactNode; rows: { label: Reac
     <div className="rounded-xl border border-ink-100 bg-white/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
       {title && <div className="mb-1 font-semibold text-ink-900">{title}</div>}
       {rows.map((r, i) => (
-        <div key={i} className="flex items-center gap-2 text-slate-600">
+        <div key={i} className="flex items-center gap-2 text-ink-600">
           {r.color && <span className="h-2 w-2 rounded-full" style={{ background: r.color }} />}
           <span>{r.label}</span>
           <span className="ml-auto pl-3 font-semibold tabular-nums text-ink-900">{r.value}</span>
@@ -61,7 +61,7 @@ export function Heatmap({ rows, cols, values, unit = '%' }: { rows: string[]; co
           <tr>
             <th />
             {cols.map((c) => (
-              <th key={c} className="px-1 pb-1 text-[11px] font-medium text-slate-500">
+              <th key={c} className="px-1 pb-1 text-[11px] font-medium text-ink-500">
                 {c}
               </th>
             ))}
@@ -70,7 +70,7 @@ export function Heatmap({ rows, cols, values, unit = '%' }: { rows: string[]; co
         <tbody>
           {rows.map((r, i) => (
             <tr key={r}>
-              <th className="whitespace-nowrap pr-2 text-left text-xs font-medium text-slate-600">{r}</th>
+              <th className="whitespace-nowrap pr-2 text-left text-xs font-medium text-ink-600">{r}</th>
               {values[i].map((v, j) => {
                 const t = v / max;
                 return (
@@ -78,7 +78,7 @@ export function Heatmap({ rows, cols, values, unit = '%' }: { rows: string[]; co
                     key={j}
                     title={`${r} × ${cols[j]}: ${v}${unit}`}
                     className="h-11 min-w-[56px] rounded-md text-center text-xs font-semibold tabular-nums"
-                    style={{ background: `rgba(99, 74, 132, ${0.08 + t * 0.85})`, color: t > 0.5 ? '#fff' : '#3b2b51' }}
+                    style={{ background: `rgba(125, 53, 75, ${0.08 + t * 0.85})`, color: t > 0.5 ? '#fff' : '#3b1824' }}
                   >
                     {v}
                     {unit}
@@ -97,9 +97,9 @@ export function Heatmap({ rows, cols, values, unit = '%' }: { rows: string[]; co
 
 const PHASE_CLS: Record<TimelineTask['phase'], string> = {
   plan: 'bg-ink-300',
-  develop: 'bg-ink-600',
+  develop: 'bg-wine-400',
   verify: 'bg-champagne-500',
-  launch: 'bg-ink-900',
+  launch: 'bg-wine-700',
 };
 export const PHASE_LABEL: Record<TimelineTask['phase'], string> = { plan: '기획', develop: '개발', verify: '검증', launch: '생산·출시' };
 
@@ -113,7 +113,7 @@ export function Gantt({ tasks, weeks }: { tasks: TimelineTask[]; weeks: number }
           <div className="w-44 shrink-0" />
           <div className="relative flex flex-1">
             {cols.map((w) => (
-              <div key={w} className="flex-1 pb-2 text-center text-[10px] font-medium tabular-nums text-slate-400">
+              <div key={w} className="flex-1 pb-2 text-center text-[10px] font-medium tabular-nums text-ink-400">
                 W{w}
               </div>
             ))}
@@ -123,7 +123,7 @@ export function Gantt({ tasks, weeks }: { tasks: TimelineTask[]; weeks: number }
           <div key={t.id} className="flex items-center border-t border-ink-50">
             <div className="w-44 shrink-0 py-1.5 pr-3">
               <div className="text-sm font-medium text-ink-900">{t.name}</div>
-              <div className="text-[11px] text-slate-500">{t.nameKo}</div>
+              <div className="text-[11px] text-ink-500">{t.nameKo}</div>
             </div>
             <div className="relative h-11 flex-1">
               <div className="absolute inset-0 flex">
@@ -168,11 +168,11 @@ export function TrendRadar({ items, selected, onSelect }: { items: IngredientTre
   return (
     <svg viewBox={`0 0 ${size} ${size}`} className="mx-auto w-full max-w-[460px]" role="img" aria-label="원료 트렌드 레이더">
       {RING_ORDER.map((s, i) => (
-        <circle key={s} cx={cx} cy={cx} r={(i + 1) * ringW + 8} fill={i === 0 ? '#f6efe4' : i === 1 ? '#f7f5fa' : i === 2 ? '#fbfafc' : '#ffffff'} stroke="#dcd4e8" />
+        <circle key={s} cx={cx} cy={cx} r={(i + 1) * ringW + 8} fill={i === 0 ? '#faf1f3' : i === 1 ? '#f8f5f0' : i === 2 ? '#fbf9f6' : '#ffffff'} stroke="#e6dfd6" />
       ))}
       {[0, 1, 2, 3].map((g) => {
         const a = (g / 4) * Math.PI * 2 - Math.PI / 2;
-        return <line key={g} x1={cx} y1={cx} x2={cx + Math.cos(a) * (cx - 16)} y2={cx + Math.sin(a) * (cx - 16)} stroke="#dcd4e8" strokeDasharray="3 4" />;
+        return <line key={g} x1={cx} y1={cx} x2={cx + Math.cos(a) * (cx - 16)} y2={cx + Math.sin(a) * (cx - 16)} stroke="#e6dfd6" strokeDasharray="3 4" />;
       })}
       {RING_ORDER.map((s, i) => (
         <text key={s} x={cx + 4} y={cx - (i * ringW + 8) - 4} fontSize="9" fontWeight="700" fill="#8f7148" letterSpacing="1.5">
@@ -182,7 +182,7 @@ export function TrendRadar({ items, selected, onSelect }: { items: IngredientTre
       {GROUPS.map((g, i) => {
         const a = ((i + 0.5) / 4) * Math.PI * 2 - Math.PI / 2;
         return (
-          <text key={g} x={cx + Math.cos(a) * (cx - 6)} y={cx + Math.sin(a) * (cx - 6)} fontSize="10" fill="#6b6478" textAnchor="middle" dominantBaseline="middle">
+          <text key={g} x={cx + Math.cos(a) * (cx - 6)} y={cx + Math.sin(a) * (cx - 6)} fontSize="10" fill="#6f685f" textAnchor="middle" dominantBaseline="middle">
             {GROUP_KO[g]}
           </text>
         );
@@ -192,8 +192,8 @@ export function TrendRadar({ items, selected, onSelect }: { items: IngredientTre
         return (
           <g key={it.id} onClick={() => onSelect(it.id)} className="cursor-pointer" role="button" aria-label={`${it.name} ${it.stage}`}>
             <circle cx={x} cy={y} r={22} fill="transparent" />
-            <circle cx={x} cy={y} r={active ? 9 : 7} fill={active ? '#eb6834' : '#2a78d6'} stroke="#fff" strokeWidth={2} />
-            <text x={x} y={y + 19} fontSize="11" fontWeight={active ? 700 : 600} fill="#261b36" textAnchor="middle">
+            <circle cx={x} cy={y} r={active ? 9 : 7} fill={active ? '#8a2f4c' : '#2f6fa8'} stroke="#fff" strokeWidth={2} />
+            <text x={x} y={y + 19} fontSize="11" fontWeight={active ? 700 : 600} fill="#292524" textAnchor="middle">
               {it.name}
             </text>
           </g>

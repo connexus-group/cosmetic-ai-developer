@@ -24,20 +24,20 @@ export default function Regulation() {
   const count = (r: 'LOW' | 'MEDIUM' | 'HIGH') => items.filter((i) => i.risk === r).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
       <PageIntro no="12" title="Regulation Check" ko="규제 검토" question="출시 전에 어떤 규제 사항을 확인해야 할까요?" right={<KindBadge kind="AI_ANALYSIS" />} />
       {!p.conceptId && <PreviewBanner projectId={p.id} step="concept" what="제품 컨셉" />}
-      <div className="flex items-start gap-3 rounded-xl border border-ink-100 bg-white px-4 py-3 text-xs text-slate-600">
+      <div className="flex items-start gap-3 rounded-xl border border-ink-100 bg-white px-4 py-3 text-xs text-ink-600">
         <Scale size={16} className="mt-0.5 shrink-0 text-ink-500" />
         이 화면은 규칙 기반 사전 점검입니다. 법적 판단이 아니며, 모든 항목은 최종적으로 <b className="text-ink-900">"규제 검토 필요"</b>합니다. 실제 출시 전 전문가 또는 제조사 RA 담당자의 검토를 받으세요.
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-4">
         {(['HIGH', 'MEDIUM', 'LOW'] as const).map((r) => (
           <Card key={r} className="p-4">
             <RiskBadge risk={r} />
             <div className="mt-2 text-3xl font-semibold tabular-nums text-ink-900">{count(r)}</div>
-            <div className="text-xs text-slate-500">검토 항목</div>
+            <div className="text-xs text-ink-500">검토 항목</div>
           </Card>
         ))}
       </div>
@@ -49,10 +49,10 @@ export default function Regulation() {
             const top = list.reduce<'LOW' | 'MEDIUM' | 'HIGH'>((m, i) => (RANK[i.risk] > RANK[m] ? i.risk : m), 'LOW');
             return (
               <div key={a.id} className={clsx('rounded-xl border p-4', top === 'HIGH' ? 'border-rose-200 bg-rose-50/50' : top === 'MEDIUM' ? 'border-amber-200 bg-amber-50/50' : 'border-emerald-200 bg-emerald-50/40')}>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{a.id}</div>
+                <div className="text-[12px] font-medium text-ink-500">{a.id}</div>
                 <div className="mt-0.5 text-sm font-semibold text-ink-900">{a.ko}</div>
                 <RiskBadge risk={top} className="mt-3" />
-                <div className="mt-2 text-[11px] text-slate-500">{list.length}개 항목</div>
+                <div className="mt-2 text-[11px] text-ink-500">{list.length}개 항목</div>
               </div>
             );
           })}
@@ -67,11 +67,11 @@ export default function Regulation() {
               <div key={i.id} className="grid gap-2 py-3 md:grid-cols-[150px_1fr_1fr] md:gap-4">
                 <div>
                   <RiskBadge risk={i.risk} />
-                  <div className="mt-1 text-[11px] text-slate-500">{i.area}</div>
+                  <div className="mt-1 text-[11px] text-ink-500">{i.area}</div>
                 </div>
                 <div>
                   <div className="text-sm font-semibold text-ink-900">{i.title}</div>
-                  <div className="mt-0.5 text-xs leading-relaxed text-slate-600">{i.detail}</div>
+                  <div className="mt-0.5 text-xs leading-relaxed text-ink-600">{i.detail}</div>
                 </div>
                 <div className="rounded-lg bg-ink-50/60 px-3 py-2 text-xs text-ink-800">
                   <span className="font-semibold">할 일 · </span>
@@ -86,7 +86,7 @@ export default function Regulation() {
         title="표현 Risk Checker"
         subtitle="광고·상세페이지 문구를 입력하면 의약품 오인·과장 표현을 찾아드려요"
         action={
-          <button type="button" onClick={() => update((x) => ({ ...x, claimCopy: DEFAULT_CLAIM_COPY }))} className="text-xs text-slate-500 hover:text-ink-800">
+          <button type="button" onClick={() => update((x) => ({ ...x, claimCopy: DEFAULT_CLAIM_COPY }))} className="text-xs text-ink-500 hover:text-ink-800">
             예시 문구 넣기
           </button>
         }
@@ -110,7 +110,7 @@ export default function Regulation() {
                     <span className="font-semibold text-ink-900">"{h.phrase}"</span>
                     <RiskBadge risk={h.risk} className="ml-auto" />
                   </div>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-600">{h.reason}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-ink-600">{h.reason}</p>
                   <p className="mt-2 text-xs text-ink-800">
                     <b>대안 표현</b> · {h.alternative}
                   </p>
