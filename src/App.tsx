@@ -1,18 +1,50 @@
-import { Route, Routes } from 'react-router-dom';
+import { useEffect, useLayoutEffect } from 'react';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { AppShell } from './components/AppShell';
+import { lazyWithRetry as lazy, prefetchRoutes } from './lib/lazy';
 
-function Home() {
-  return (
-    <main className="mx-auto flex min-h-full max-w-3xl flex-col items-center justify-center px-4 py-16 text-center">
-      <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">어떤 화장품을 만들고 싶으세요?</h1>
-      <p className="mt-3 text-sm text-slate-500">AI Product Developer · 프로젝트 초기 설정</p>
-    </main>
-  );
+const Home = lazy(() => import('./pages/Home'));
+const Projects = lazy(() => import('./pages/Projects'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const ProjectLayout = lazy(() => import('./pages/project/ProjectLayout'));
+const StepPage = lazy(() => import('./pages/project/StepPage'));
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  // Braces matter: newer browsers return a Promise from scrollTo, and an effect
+  // that returns a non-function makes React crash when it runs the "cleanup".
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
+/** Short alias: /project/pdrn-firming-ampoule → /projects/pdrn-firming-ampoule/overview */
+function ProjectAlias() {
+  const { id, step } = useParams();
+  return <Navigate to={`/projects/${id}/${step ?? 'overview'}`} replace />;
 }
 
 export default function App() {
+  useEffect(() => {
+    prefetchRoutes();
+  }, []);
   return (
-    <Routes>
-      <Route path="*" element={<Home />} />
-    </Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route index element={<Home />} />
+          <Route path="projects" element={<Projects />} />
+          <Route path="projects/:id" element={<ProjectLayout />} />
+          <Route path="projects/:id/:step" element={<ProjectLayout />}>
+            <Route index element={<StepPage />} />
+          </Route>
+          <Route path="project/:id" element={<ProjectAlias />} />
+          <Route path="project/:id/:step" element={<ProjectAlias />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    </>
   );
 }
