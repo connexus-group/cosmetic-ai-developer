@@ -42,8 +42,8 @@ export class ErrorBoundary extends Component<Props, State> {
       <div role="alert" className="mx-auto my-16 max-w-lg rounded-2xl border border-rose-200 bg-white p-6 text-center shadow-sm">
         <AlertTriangle className="mx-auto text-rose-500" size={28} />
         <h2 className="mt-3 text-lg font-semibold text-ink-900">화면을 표시하는 중 문제가 생겼어요</h2>
-        <p className="mt-1 text-sm text-ink-500">입력한 내용은 브라우저에 저장되어 있어요. 다시 시도하거나 처음 화면으로 돌아가 주세요.</p>
-        <pre className="mt-4 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-ink-50 px-3 py-2 text-left text-[11px] text-ink-600">{report(error)}</pre>
+        <p className="mt-1 text-sm text-slate-500">입력한 내용은 브라우저에 저장되어 있어요. 다시 시도하거나 처음 화면으로 돌아가 주세요.</p>
+        <pre className="mt-4 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-ink-50 px-3 py-2 text-left text-[11px] text-slate-600">{report(error)}</pre>
         <button
           type="button"
           onClick={() => void navigator.clipboard?.writeText(report(error)).catch(() => undefined)}

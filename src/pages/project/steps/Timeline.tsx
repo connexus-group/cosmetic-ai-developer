@@ -1,15 +1,15 @@
 import clsx from 'clsx';
-import { Check, Info } from 'lucide-react';
+import { CalendarClock, Check, Info } from 'lucide-react';
 import { AiInsight } from '@/components/AiInsight';
-import { Gantt, PHASE_LABEL } from '@/components/charts';
-import { KindBadge, PageIntro, Section } from '@/components/ui';
+import { Gantt, PHASE_LABEL, ProgressRing } from '@/components/charts';
+import { Card, KindBadge, PageIntro, Section } from '@/components/ui';
 import { CHECKLIST } from '@/data/mock';
 import type { ChecklistItem } from '@/data/types';
 import { effectiveConcept, progressOf, timelineOf } from '@/lib/engine';
 import { useProject } from '../ProjectLayout';
 
 const GROUPS: ChecklistItem['group'][] = ['기획', '개발', '검증', '생산·출시'];
-const PHASE_DOT = { plan: 'bg-ink-300', develop: 'bg-wine-400', verify: 'bg-champagne-500', launch: 'bg-wine-700' } as const;
+const PHASE_DOT = { plan: 'bg-ink-300', develop: 'bg-ink-600', verify: 'bg-champagne-500', launch: 'bg-ink-900' } as const;
 
 export default function Timeline() {
   const { project: p, update } = useProject();
@@ -20,47 +20,42 @@ export default function Timeline() {
   const toggle = (id: string) => update((x) => ({ ...x, checklist: { ...x.checklist, [id]: !x.checklist[id] } }));
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <PageIntro no="14" title="Development Timeline" ko="개발 일정 · 체크리스트" question="언제 출시할 수 있고, 무엇부터 해야 할까요?" right={<KindBadge kind="AI_ESTIMATE" />} />
 
-      <section className="grid gap-10 rounded-xl border border-ink-100/80 bg-white p-6 sm:p-10 md:grid-cols-[1.2fr_1fr_1fr] md:gap-0 md:[&>*+*]:border-l md:[&>*+*]:border-ink-100 md:[&>*+*]:pl-10 md:[&>*]:pr-10">
-        <div>
-          <div className="text-[13px] font-medium text-ink-500">Estimated launch</div>
-          <div className="mt-3 flex items-baseline gap-3">
-            <span className="font-display text-[104px] leading-[0.85] text-ink-900 tabular-nums">{weeks}</span>
-            <span className="font-display text-3xl text-wine-700">weeks</span>
+      <div className="grid gap-4 md:grid-cols-[1fr_1fr_1.3fr]">
+        <Card className="flex items-center gap-4 bg-gradient-to-br from-ink-900 to-ink-700 p-6 text-white">
+          <CalendarClock size={28} className="text-champagne-300" />
+          <div>
+            <div className="text-[11px] font-bold tracking-[0.2em] text-champagne-300">ESTIMATED LAUNCH</div>
+            <div className="text-4xl font-semibold tabular-nums">{weeks} Weeks</div>
+            <div className="text-xs text-ink-200">약 {Math.round((weeks / 4.345) * 10) / 10}개월 · 오늘 시작 시 {launch.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })} 출시 예상</div>
           </div>
-          <div className="mt-4 text-[14px] text-ink-500">
-            약 {Math.round((weeks / 4.345) * 10) / 10}개월 · 오늘 시작하면 {launch.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })} 출시 예상
-          </div>
-        </div>
-        <div>
-          <div className="text-[13px] font-medium text-ink-500">일정 기준</div>
-          <div className="mt-3 text-lg font-semibold text-ink-900">{concept.name}</div>
-          <ul className="mt-3 space-y-1.5 text-[14px] text-ink-600">
+        </Card>
+        <Card className="p-6">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">일정 기준</div>
+          <div className="mt-1 text-sm font-semibold text-ink-900">{concept.name}</div>
+          <ul className="mt-2 space-y-1 text-xs text-slate-600">
             {notes.length ? notes.map((n) => <li key={n}>· {n}</li>) : <li>· 표준 개발 일정 기준</li>}
           </ul>
-        </div>
-        <div>
-          <div className="text-[13px] font-medium text-ink-500">Development progress</div>
-          <div className="mt-3 flex items-baseline gap-1">
-            <span className="font-display text-[64px] leading-none text-ink-900 tabular-nums">{prog.pct}</span>
-            <span className="font-display text-2xl text-ink-300">%</span>
+        </Card>
+        <Card className="flex items-center gap-4 p-6">
+          <ProgressRing value={prog.pct} size={84} stroke={8} label="Progress" />
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Development Progress</div>
+            <div className="mt-1 text-sm text-slate-600">
+              체크리스트 <b className="text-ink-900">{prog.checks}/{prog.checksTotal}</b> 완료
+            </div>
+            <div className="text-xs text-slate-500">아래 체크리스트를 체크하면 진행률이 올라가요.</div>
           </div>
-          <div className="mt-3 h-1 overflow-hidden rounded-full bg-ink-100">
-            <div className="h-1 rounded-full bg-wine-600 transition-all" style={{ width: `${prog.pct}%` }} />
-          </div>
-          <div className="mt-2 text-[13px] text-ink-500">
-            체크리스트 {prog.checks}/{prog.checksTotal} 완료 · 체크하면 진행률이 올라가요
-          </div>
-        </div>
-      </section>
+        </Card>
+      </div>
 
       <Section
         title="개발 일정 (Gantt)"
         subtitle="주 단위 · 막대에 마우스를 올리면 기간이 보여요"
         action={
-          <div className="flex flex-wrap gap-3 text-[11px] text-ink-600">
+          <div className="flex flex-wrap gap-3 text-[11px] text-slate-600">
             {(Object.keys(PHASE_LABEL) as (keyof typeof PHASE_LABEL)[]).map((k) => (
               <span key={k} className="flex items-center gap-1.5">
                 <span className={clsx('h-2.5 w-2.5 rounded-sm', PHASE_DOT[k])} /> {PHASE_LABEL[k]}
@@ -70,7 +65,7 @@ export default function Timeline() {
         }
       >
         <Gantt tasks={tasks} weeks={weeks} />
-        <p className="mt-3 flex items-center gap-1.5 text-[11px] text-ink-500">
+        <p className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500">
           <Info size={12} /> 일반적인 OEM 개발 일정을 기준으로 한 예상값입니다. 제조사 일정과 시험기관 일정에 따라 달라집니다.
         </p>
       </Section>
@@ -84,12 +79,12 @@ export default function Timeline() {
               <div key={g} className="rounded-xl border border-ink-100 p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm font-semibold text-ink-900">{g}</span>
-                  <span className="text-xs tabular-nums text-ink-500">
+                  <span className="text-xs tabular-nums text-slate-500">
                     {done}/{list.length}
                   </span>
                 </div>
                 <div className="mb-3 h-1 rounded-full bg-ink-50">
-                  <div className="h-1 rounded-full bg-wine-600 transition-all" style={{ width: `${(done / list.length) * 100}%` }} />
+                  <div className="h-1 rounded-full bg-ink-600 transition-all" style={{ width: `${(done / list.length) * 100}%` }} />
                 </div>
                 <ul className="space-y-1">
                   {list.map((c) => {
@@ -97,8 +92,8 @@ export default function Timeline() {
                     return (
                       <li key={c.id}>
                         <button type="button" onClick={() => toggle(c.id)} aria-pressed={on} className="flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left text-sm hover:bg-ink-50">
-                          <span className={clsx('grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border', on ? 'border-wine-700 bg-wine-700 text-white' : 'border-ink-200')}>{on && <Check size={12} />}</span>
-                          <span className={clsx(on ? 'text-ink-400 line-through' : 'text-ink-900')}>{c.label}</span>
+                          <span className={clsx('grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border', on ? 'border-ink-800 bg-ink-800 text-white' : 'border-ink-200')}>{on && <Check size={12} />}</span>
+                          <span className={clsx(on ? 'text-slate-400 line-through' : 'text-ink-900')}>{c.label}</span>
                         </button>
                       </li>
                     );

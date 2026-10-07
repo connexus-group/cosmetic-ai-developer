@@ -33,7 +33,7 @@ export default function Formula() {
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <PageIntro no="08" title="Formula" ko="제형 추천" question={`${concept.name}에는 어떤 제형이 가장 잘 맞을까요?`} right={<KindBadge kind="AI_ANALYSIS" />} />
       {!p.conceptId && <PreviewBanner projectId={p.id} step="concept" what="제품 컨셉" />}
       {!data ? (
@@ -45,9 +45,9 @@ export default function Formula() {
               const rec = data.recommended[concept.id] === f.id;
               const selected = p.formulaId === f.id;
               return (
-                <Card key={f.id} className={clsx('flex flex-col p-6', rec && 'border-wine-200', selected && 'ring-2 ring-wine-600')}>
+                <Card key={f.id} className={clsx('flex flex-col p-6', rec && 'border-ink-400 ring-2 ring-ink-200', selected && 'ring-2 ring-champagne-500')}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[12px] font-medium" style={{ color: SERIES[i] }}>
+                    <span className="text-[11px] font-bold tracking-[0.18em]" style={{ color: SERIES[i] }}>
                       OPTION {String.fromCharCode(65 + i)}
                     </span>
                     {rec && <AiPill />}
@@ -58,10 +58,10 @@ export default function Formula() {
                     </div>
                     <div>
                       <div className="text-lg font-semibold text-ink-900">{f.name}</div>
-                      <div className="text-xs text-ink-500">{f.nameKo}</div>
+                      <div className="text-xs text-slate-500">{f.nameKo}</div>
                     </div>
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed text-ink-600">{f.description}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-slate-600">{f.description}</p>
                   <div className="mt-4 space-y-2.5">
                     <ScoreBar label="Absorption · 흡수 속도" value={f.absorption} />
                     <ScoreBar label="Moisture · 보습감" value={f.moisture} />
@@ -72,19 +72,19 @@ export default function Formula() {
                   </div>
                   <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-ink-50 pt-4 text-sm">
                     <div>
-                      <dt className="text-[11px] text-ink-500">Estimated Cost (30ml 내용물)</dt>
+                      <dt className="text-[11px] text-slate-500">Estimated Cost (30ml 내용물)</dt>
                       <dd className="font-semibold text-ink-900">{krw(f.costPerUnit)}</dd>
                     </div>
                     <div>
-                      <dt className="text-[11px] text-ink-500">Trend Score</dt>
+                      <dt className="text-[11px] text-slate-500">Trend Score</dt>
                       <dd className="font-semibold text-ink-900">{f.trendScore}</dd>
                     </div>
                     <div className="col-span-2">
-                      <dt className="text-[11px] text-ink-500">예상 점도</dt>
+                      <dt className="text-[11px] text-slate-500">예상 점도</dt>
                       <dd className="text-ink-900">{f.viscosity}</dd>
                     </div>
                     <div className="col-span-2">
-                      <dt className="text-[11px] text-ink-500">추천 피부타입</dt>
+                      <dt className="text-[11px] text-slate-500">추천 피부타입</dt>
                       <dd className="text-ink-900">{f.skinTypes}</dd>
                     </div>
                   </dl>
@@ -105,7 +105,7 @@ export default function Formula() {
             })}
           </div>
 
-          <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
+          <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
             <Section title="사용감 비교" subtitle="바깥쪽일수록 좋음 (끈적임·난이도는 뒤집어 표시)" action={<KindBadge kind="AI_ESTIMATE" />}>
               <div className="h-72">
                 <ResponsiveContainer>
@@ -120,7 +120,7 @@ export default function Formula() {
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex flex-wrap gap-3 text-xs text-ink-600">
+              <div className="flex flex-wrap gap-3 text-xs text-slate-600">
                 {data.items.map((f, i) => (
                   <span key={f.id} className="flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ background: SERIES[i] }} /> {f.name}

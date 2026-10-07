@@ -1,10 +1,11 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { Link, Navigate, NavLink, Outlet, useParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { ArrowLeft, ArrowRight, Check, ChevronDown } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import type { Project, StepId } from '@/data/types';
 import { STEP_IDS } from '@/data/types';
-import { currentStep, NEXT_ACTION, PHASES, phaseOf, progressOf, STEPS, stepStatus } from '@/lib/engine';
+import { ProgressRing } from '@/components/charts';
+import { currentStep, NEXT_ACTION, progressOf, STEPS, stepStatus } from '@/lib/engine';
 import { now, useProjects } from '@/state/ProjectStore';
 
 interface Ctx {
@@ -48,73 +49,64 @@ export default function ProjectLayout() {
     touch: (key) => ({ ...project.changed, [key]: now() }),
   };
 
-  const facts = [
-    { label: 'Target', value: project.intake.target.value },
-    { label: 'Category', value: project.intake.category.value.split(' > ').pop() },
-    { label: 'Price', value: project.intake.price.value },
-    { label: 'Channel', value: project.intake.channel.value },
-  ];
-  const curPhase = phaseOf(cur.id);
-
   return (
     <ProjectCtx.Provider value={ctx}>
-      {/* Always visible: which product, and where it is in development. */}
-      <div className="no-print sticky top-14 z-20 border-b border-ink-100 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-4 px-4 sm:px-6">
-          <div className="min-w-0 flex-1 truncate">
-            <span className="font-display text-[22px] leading-none text-ink-900">{project.name}</span>
-          </div>
-          <div className="hidden items-center gap-2 text-[13px] text-ink-500 md:flex">
-            <span>현재 개발 단계</span>
-            <span className="rounded-full bg-wine-50 px-2.5 py-1 font-medium text-wine-800">
-              {curPhase.label} · {cur.no} {cur.label}
-            </span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <div className="hidden h-1 w-24 overflow-hidden rounded-full bg-ink-100 sm:block">
-              <div className="h-1 rounded-full bg-wine-600 transition-all" style={{ width: `${prog.pct}%` }} />
+      <div className="no-print bg-gradient-to-r from-ink-900 via-ink-800 to-ink-700 text-white">
+        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-5 px-4 py-5 sm:px-6">
+          <ProgressRing value={prog.pct} size={76} stroke={7} label="Progress" dark />
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-bold tracking-[0.22em] text-champagne-300">AI PRODUCT DEVELOPMENT</div>
+            <div className="truncate text-xl font-semibold uppercase tracking-wide sm:text-2xl">{project.name}</div>
+            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-200">
+              <span>
+                Development Progress <b className="text-white">{prog.pct}%</b>
+              </span>
+              <span>
+                현재 단계 <b className="text-white">{cur.no} {cur.label}</b>
+              </span>
+              <span>
+                단계 {prog.stepsDone}/{prog.stepsTotal} · 체크리스트 {prog.checks}/{prog.checksTotal}
+              </span>
             </div>
-            <span className="text-[13px] font-semibold tabular-nums text-ink-900">{prog.pct}%</span>
+            <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 sm:flex sm:flex-wrap">
+              {[
+                { label: 'Target', value: project.intake.target.value },
+                { label: 'Category', value: project.intake.category.value.split(' > ').pop() },
+                { label: 'Price', value: project.intake.price.value },
+                { label: 'Channel', value: project.intake.channel.value },
+              ].map((f) => (
+                <div key={f.label} className="min-w-0">
+                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-ink-300">{f.label}</dt>
+                  <dd className="truncate text-sm font-medium text-white">{f.value || '미입력'}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
-        </div>
-      </div>
-
-      <div className="no-print border-b border-ink-100/70">
-        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-10 gap-y-3 px-4 py-5 sm:px-6">
-          <div className="text-[12px] font-medium text-wine-700">AI Product Development</div>
-          <dl className="flex flex-wrap gap-x-10 gap-y-3">
-            {facts.map((f) => (
-              <div key={f.label} className="min-w-0">
-                <dt className="text-[12px] text-ink-400">{f.label}</dt>
-                <dd className="mt-0.5 truncate text-[15px] font-medium text-ink-900">{f.value || '미입력'}</dd>
-              </div>
-            ))}
-          </dl>
-          <Link to="/projects" className="ml-auto text-[13px] text-ink-500 underline-offset-4 hover:text-ink-900 hover:underline">
+          <Link to="/projects" className="rounded-lg px-3 py-1.5 text-xs text-ink-200 ring-1 ring-white/20 hover:bg-white/10">
             모든 프로젝트
           </Link>
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-[1400px] gap-12 px-4 py-10 sm:px-6">
-        <aside className="no-print hidden w-60 shrink-0 lg:block">
-          <StepNav project={project} active={stepId} next={cur.id} />
+      <div className="mx-auto flex max-w-[1400px] gap-6 px-4 py-6 sm:px-6">
+        <aside className="no-print hidden w-56 shrink-0 lg:block">
+          <StepNav project={project} active={stepId} />
         </aside>
         <div className="min-w-0 flex-1">
-          <div className="no-print -mx-4 mb-8 overflow-x-auto px-4 lg:hidden">
-            <MobileStepNav project={project} active={stepId} />
+          <div className="no-print -mx-4 mb-5 overflow-x-auto px-4 lg:hidden">
+            <StepNav project={project} active={stepId} horizontal />
           </div>
           <Outlet />
-          <div className="no-print mt-16 flex items-center justify-between gap-4 border-t border-ink-100 pt-8">
+          <div className="no-print mt-10 flex items-center justify-between border-t border-ink-100 pt-5">
             {prev ? (
-              <Link to={`/projects/${project.id}/${prev.id}`} className="flex items-center gap-2 text-sm text-ink-500 hover:text-ink-900">
+              <Link to={`/projects/${project.id}/${prev.id}`} className="flex items-center gap-2 text-sm text-slate-500 hover:text-ink-900">
                 <ArrowLeft size={15} /> {prev.no} {prev.label}
               </Link>
             ) : (
               <span />
             )}
             {next && (
-              <Link to={`/projects/${project.id}/${next.id}`} className="flex items-center gap-2 rounded-lg bg-ink-900 px-6 py-3.5 text-[15px] font-medium text-white transition hover:bg-wine-800">
+              <Link to={`/projects/${project.id}/${next.id}`} className="flex items-center gap-2 rounded-xl bg-ink-900 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-ink-800 sm:text-[15px]">
                 {NEXT_ACTION[next.id].cta} <ArrowRight size={16} />
               </Link>
             )}
@@ -125,112 +117,52 @@ export default function ProjectLayout() {
   );
 }
 
-function StepNav({ project, active, next }: { project: Project; active: StepId; next: StepId }) {
-  const activePhase = phaseOf(active).id;
-  const [open, setOpen] = useState<Set<string>>(() => new Set([activePhase]));
-  // Moving to another phase (e.g. via the next button) opens it.
-  useEffect(() => {
-    setOpen((o) => (o.has(activePhase) ? o : new Set(o).add(activePhase)));
-  }, [activePhase]);
-  const toggle = (id: string) =>
-    setOpen((o) => {
-      const n = new Set(o);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-
+function StepNav({ project, active, horizontal }: { project: Project; active: StepId; horizontal?: boolean }) {
   return (
-    <nav className="sticky top-36 space-y-1" aria-label="개발 단계">
-      {PHASES.map((ph) => {
-        const isOpen = open.has(ph.id);
-        const done = ph.steps.filter((id) => stepStatus(project, id) === 'done').length;
-        const here = ph.id === activePhase;
+    <nav className={clsx(horizontal ? 'flex gap-1.5' : 'sticky top-20 space-y-0.5')}>
+      {!horizontal && <div className="mb-2 px-2 text-[10px] font-bold tracking-[0.2em] text-slate-400">DEVELOPMENT STEPS</div>}
+      {STEPS.map((s) => {
+        const st = stepStatus(project, s.id);
         return (
-          <div key={ph.id} className="pb-1">
-            <button
-              type="button"
-              onClick={() => toggle(ph.id)}
-              aria-expanded={isOpen}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-ink-100/50"
-            >
-              <span className={clsx('text-[11px] font-semibold tabular-nums', here ? 'text-wine-700' : 'text-ink-400')}>{ph.no}</span>
-              <span className={clsx('text-[13px] font-semibold tracking-wide', here ? 'text-ink-900' : 'text-ink-600')}>{ph.label}</span>
-              <span className="text-[12px] text-ink-400">{ph.ko}</span>
-              <span className="ml-auto text-[11px] tabular-nums text-ink-400">
-                {done}/{ph.steps.length}
-              </span>
-              <ChevronDown size={14} className={clsx('text-ink-400 transition', !isOpen && '-rotate-90')} />
-            </button>
-            {isOpen && (
-              <ul className="mb-2 ml-3 border-l border-ink-100">
-                {ph.steps.map((id) => {
-                  const s = STEPS.find((x) => x.id === id)!;
-                  const st = stepStatus(project, id);
-                  const isActive = id === active;
-                  return (
-                    <li key={id}>
-                      <NavLink
-                        to={`/projects/${project.id}/${id}`}
-                        className={clsx(
-                          '-ml-px flex items-center gap-2.5 border-l-2 py-2 pl-4 pr-2 text-[14px] transition',
-                          isActive ? 'border-wine-600 font-semibold text-wine-800' : 'border-transparent text-ink-600 hover:border-ink-300 hover:text-ink-900',
-                        )}
-                      >
-                        <span className={clsx('w-5 text-[11px] tabular-nums', isActive ? 'text-wine-600' : 'text-ink-300')}>{s.no}</span>
-                        <span className="truncate">{s.label}</span>
-                        <span className="ml-auto flex items-center">
-                          {st === 'done' ? (
-                            <Check size={13} className="text-wine-600" aria-label="완료" />
-                          ) : st === 'stale' ? (
-                            <span className="flex items-center gap-1 text-[10px] font-medium text-amber-700" title="이전 단계가 바뀌었어요">
-                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> 재검토
-                            </span>
-                          ) : id === next && !isActive ? (
-                            <span className="text-[10px] font-medium text-wine-600">다음</span>
-                          ) : null}
-                        </span>
-                      </NavLink>
-                    </li>
-                  );
-                })}
-              </ul>
+          <NavLink
+            key={s.id}
+            to={`/projects/${project.id}/${s.id}`}
+            className={clsx(
+              'flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition',
+              horizontal && 'shrink-0 ring-1 ring-inset ring-ink-100',
+              s.id === active ? 'bg-white font-semibold text-ink-900 shadow-sm ring-1 ring-ink-100' : 'text-slate-600 hover:bg-white/70',
             )}
-          </div>
+          >
+            <span
+              className={clsx(
+                'grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold tabular-nums',
+                st === 'done' ? 'bg-ink-700 text-white' : st === 'stale' ? 'bg-amber-100 text-amber-800' : s.id === active ? 'bg-champagne-300 text-ink-900' : 'bg-ink-50 text-slate-500',
+              )}
+              title={st === 'done' ? '완료' : st === 'stale' ? '재검토 필요: 이전 단계가 바뀌었어요' : '미완료'}
+            >
+              {st === 'done' ? <Check size={12} /> : st === 'stale' ? <AlertCircle size={12} /> : s.no}
+            </span>
+            <span className="whitespace-nowrap">{s.label}</span>
+            {st === 'stale' && !horizontal && <span className="ml-auto text-[9px] font-semibold text-amber-700">재검토</span>}
+          </NavLink>
         );
       })}
+      {!horizontal && <Legend />}
     </nav>
   );
 }
 
-function MobileStepNav({ project, active }: { project: Project; active: StepId }) {
+function Legend() {
+  const Item = ({ cls, children }: { cls: string; children: ReactNode }) => (
+    <div className="flex items-center gap-1.5">
+      <span className={clsx('h-2.5 w-2.5 rounded-full', cls)} /> {children}
+    </div>
+  );
   return (
-    <nav className="flex items-center gap-1" aria-label="개발 단계">
-      {PHASES.map((ph, i) => (
-        <div key={ph.id} className="flex shrink-0 items-center gap-1">
-          {i > 0 && <span className="mx-1.5 h-4 w-px bg-ink-200" />}
-          <span className="mr-1 text-[11px] font-semibold text-ink-400">{ph.label}</span>
-          {ph.steps.map((id) => {
-            const s = STEPS.find((x) => x.id === id)!;
-            const st = stepStatus(project, id);
-            const isActive = id === active;
-            return (
-              <NavLink
-                key={id}
-                to={`/projects/${project.id}/${id}`}
-                className={clsx(
-                  'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] whitespace-nowrap transition',
-                  isActive ? 'bg-wine-700 font-medium text-white' : 'text-ink-600 ring-1 ring-inset ring-ink-100 hover:bg-white',
-                )}
-              >
-                {st === 'done' && !isActive && <Check size={12} className="text-wine-600" />}
-                {st === 'stale' && !isActive && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
-                {s.label}
-              </NavLink>
-            );
-          })}
-        </div>
-      ))}
-    </nav>
+    <div className="mt-4 space-y-1 border-t border-ink-100 px-2 pt-3 text-[11px] text-slate-500">
+      <Item cls="bg-ink-700">완료</Item>
+      <Item cls="bg-amber-300">재검토 필요</Item>
+      <Item cls="bg-ink-100">미완료</Item>
+    </div>
   );
 }

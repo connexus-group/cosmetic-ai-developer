@@ -9,7 +9,7 @@ import { useAsync } from '@/lib/useAsync';
 import { useProject } from '../ProjectLayout';
 
 const GROUPS: { id: TestItem['group']; title: string; desc: string; cls: string }[] = [
-  { id: 'REQUIRED', title: 'REQUIRED', desc: '출시를 위해 반드시 필요한 시험', cls: 'bg-wine-700 text-white' },
+  { id: 'REQUIRED', title: 'REQUIRED', desc: '출시를 위해 반드시 필요한 시험', cls: 'bg-ink-900 text-white' },
   { id: 'RECOMMENDED', title: 'RECOMMENDED', desc: '제품 특성상 강력히 권장', cls: 'bg-ink-100 text-ink-800' },
   { id: 'MARKETING', title: 'MARKETING', desc: '광고 문구의 근거를 만드는 효능 시험', cls: 'bg-champagne-100 text-champagne-700' },
 ];
@@ -21,13 +21,13 @@ export default function Testing() {
   const toggle = (id: string) => update((x) => ({ ...x, tests: { ...x.tests, [id]: !x.tests[id] } }));
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <PageIntro no="13" title="Testing" ko="필요 시험" question="출시 전에 어떤 시험을 해야 하고, 광고에 쓸 근거는 무엇일까요?" right={<KindBadge kind="AI_ANALYSIS" />} />
       {!data ? (
         <AnalyzingState />
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             {GROUPS.map((g) => {
               const list = data.filter((t) => t.group === g.id);
               const n = list.filter((t) => p.tests[t.id]).length;
@@ -36,9 +36,9 @@ export default function Testing() {
                   <span className={clsx('rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wider', g.cls)}>{g.title}</span>
                   <div className="mt-2 text-2xl font-semibold tabular-nums text-ink-900">
                     {n}
-                    <span className="text-sm font-normal text-ink-400"> / {list.length}</span>
+                    <span className="text-sm font-normal text-slate-400"> / {list.length}</span>
                   </div>
-                  <div className="text-xs text-ink-500">선택한 시험</div>
+                  <div className="text-xs text-slate-500">선택한 시험</div>
                 </Card>
               );
             })}
@@ -59,22 +59,22 @@ export default function Testing() {
                         className={clsx('flex gap-3 rounded-xl border p-4 text-left transition', on ? 'border-ink-300 bg-ink-50/60' : 'border-ink-100 hover:border-ink-200')}
                         aria-pressed={on}
                       >
-                        <span className={clsx('mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border', on ? 'border-wine-700 bg-wine-700 text-white' : 'border-ink-200 bg-white')}>{on && <Check size={13} />}</span>
+                        <span className={clsx('mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border', on ? 'border-ink-800 bg-ink-800 text-white' : 'border-ink-200 bg-white')}>{on && <Check size={13} />}</span>
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-baseline gap-x-2">
                             <span className="font-semibold text-ink-900">{t.name}</span>
-                            <span className="text-xs text-ink-500">{t.nameKo}</span>
+                            <span className="text-xs text-slate-500">{t.nameKo}</span>
                           </span>
-                          <span className="mt-1 block text-xs leading-relaxed text-ink-600">
+                          <span className="mt-1 block text-xs leading-relaxed text-slate-600">
                             <b className="text-ink-800">목적</b> {t.purpose}
                           </span>
-                          <span className="block text-xs leading-relaxed text-ink-600">
+                          <span className="block text-xs leading-relaxed text-slate-600">
                             <b className="text-ink-800">필요성</b> {t.necessity}
                           </span>
                           <span className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
-                            <span className="rounded-full bg-white px-2 py-0.5 text-ink-600 ring-1 ring-ink-100">예상 기간 {t.weeks}</span>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-ink-600 ring-1 ring-ink-100">{t.stage}</span>
-                            {t.note && <span className="rounded-full bg-white px-2 py-0.5 text-ink-500 ring-1 ring-ink-100">{t.note}</span>}
+                            <span className="rounded-full bg-white px-2 py-0.5 text-slate-600 ring-1 ring-ink-100">예상 기간 {t.weeks}</span>
+                            <span className="rounded-full bg-white px-2 py-0.5 text-slate-600 ring-1 ring-ink-100">{t.stage}</span>
+                            {t.note && <span className="rounded-full bg-white px-2 py-0.5 text-slate-500 ring-1 ring-ink-100">{t.note}</span>}
                           </span>
                         </span>
                       </button>
@@ -84,7 +84,7 @@ export default function Testing() {
             </Section>
           ))}
 
-          <p className="text-[11px] text-ink-500">
+          <p className="text-[11px] text-slate-500">
             시험 기간은 일반적인 범위의 데모 예상값입니다 <KindBadge kind="AI_ESTIMATE" className="ml-1" />. 실제 기간·비용은 시험기관 견적으로 확인하세요.
           </p>
 

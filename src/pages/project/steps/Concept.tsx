@@ -38,7 +38,7 @@ export default function Concept() {
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <PageIntro no="07" title="AI Product Concept" ko="AI 제품 컨셉 3안" question="시장조사 결과를 바탕으로, 어떤 제품을 만들면 좋을까요?" right={<KindBadge kind="AI_ANALYSIS" />} />
       {!data ? (
         <AnalyzingState label="AI가 시장조사 결과로 제품 컨셉을 설계하고 있어요" />
@@ -50,7 +50,7 @@ export default function Concept() {
             ))}
           </div>
 
-          <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
+          <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
             <Section title="세 가지 안을 한눈에 비교" subtitle="개발 난이도는 낮을수록 좋음 (차트에서는 '개발 용이성'으로 뒤집어 표시)" action={<KindBadge kind="AI_ESTIMATE" />}>
               <div className="h-72">
                 <ResponsiveContainer>
@@ -70,7 +70,7 @@ export default function Concept() {
               </div>
               <div className="flex flex-wrap gap-3 text-xs">
                 {data.map((c, i) => (
-                  <span key={c.id} className="flex items-center gap-1.5 text-ink-600">
+                  <span key={c.id} className="flex items-center gap-1.5 text-slate-600">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ background: SERIES[i] }} /> {c.id}. {c.type}
                   </span>
                 ))}
@@ -94,24 +94,24 @@ export default function Concept() {
 
 function ConceptCard({ c, color, selected, onChoose }: { c: ConceptOption; color: string; selected: boolean; onChoose: () => void }) {
   return (
-    <Card className={clsx('flex flex-col overflow-hidden', c.recommended && 'border-wine-200', selected && 'ring-2 ring-wine-600')}>
-      <div className="relative px-6 pb-5 pt-6">
+    <Card className={clsx('flex flex-col overflow-hidden', c.recommended && 'border-ink-400 ring-2 ring-ink-200', selected && 'ring-2 ring-champagne-500')}>
+      <div className="relative bg-gradient-to-br from-ink-50 to-white px-6 pb-5 pt-6">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[12px] font-medium" style={{ color }}>
+          <span className="text-[11px] font-bold tracking-[0.18em]" style={{ color }}>
             OPTION {c.id} · {c.type}
           </span>
           {c.recommended && <AiPill />}
         </div>
         <div className="mt-3 flex items-start gap-3">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-wine-50 text-wine-700">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-ink-900 text-champagne-300">
             <FlaskConical size={22} />
           </div>
           <div>
             <div className="text-lg font-semibold leading-snug text-ink-900">{c.name}</div>
-            <div className="text-xs text-ink-500">{c.nameKo}</div>
+            <div className="text-xs text-slate-500">{c.nameKo}</div>
           </div>
         </div>
-        <p className="mt-3 text-sm leading-relaxed text-ink-700">{c.oneLiner}</p>
+        <p className="mt-3 text-sm leading-relaxed text-slate-700">{c.oneLiner}</p>
       </div>
       <div className="space-y-2.5 border-t border-ink-50 px-6 py-5">
         {SCORE_LABELS.map(([k, en, ko]) => (
@@ -133,7 +133,7 @@ function ConceptCard({ c, color, selected, onChoose }: { c: ConceptOption; color
         <Item label="Differentiation" value={c.differentiation} wide />
       </dl>
       <div className="mt-auto border-t border-ink-50 bg-ink-50/40 px-6 py-4">
-        <p className="mb-3 text-xs text-ink-600">{c.reason}</p>
+        <p className="mb-3 text-xs text-slate-600">{c.reason}</p>
         <Button variant={c.recommended ? 'primary' : 'secondary'} className="w-full" onClick={onChoose}>
           {selected ? (
             <>
@@ -151,7 +151,7 @@ function ConceptCard({ c, color, selected, onChoose }: { c: ConceptOption; color
 function Item({ label, value, wide, badge }: { label: string; value: React.ReactNode; wide?: boolean; badge?: boolean }) {
   return (
     <div className={wide ? 'col-span-2' : ''}>
-      <dt className="flex items-center gap-1 text-[12px] font-medium text-ink-500">
+      <dt className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wider text-slate-500">
         {label} {badge && <DemoBadge className="!px-1.5 !py-0 !text-[9px]" />}
       </dt>
       <dd className="mt-0.5 font-medium text-ink-900">{value}</dd>

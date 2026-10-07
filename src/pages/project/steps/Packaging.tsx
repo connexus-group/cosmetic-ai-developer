@@ -53,7 +53,7 @@ export default function Packaging() {
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <PageIntro no="10" title="Packaging" ko="패키지 추천" question="내용물을 지키면서 브랜드에도 맞는 용기는 무엇일까요?" right={<KindBadge kind="AI_ANALYSIS" />} />
       {!p.conceptId && <PreviewBanner projectId={p.id} step="concept" what="제품 컨셉" />}
       {p.conceptId && !p.formulaId && <PreviewBanner projectId={p.id} step="formula" what="제형" />}
@@ -79,7 +79,7 @@ export default function Packaging() {
               return (
                 <Card key={x.id} className={clsx('flex flex-col p-6', rec && 'border-ink-400 ring-2 ring-ink-200', selected && 'ring-2 ring-champagne-500')}>
                   <div className="flex items-center justify-between">
-                    <span className="text-[12px] font-medium" style={{ color: SERIES[i] }}>
+                    <span className="text-[11px] font-bold tracking-[0.18em]" style={{ color: SERIES[i] }}>
                       OPTION {String.fromCharCode(65 + i)}
                     </span>
                     {rec && <AiPill>AI RECOMMENDED PACKAGE</AiPill>}
@@ -90,12 +90,12 @@ export default function Packaging() {
                     </div>
                     <div>
                       <div className="text-lg font-semibold text-ink-900">{x.name}</div>
-                      <div className="text-xs text-ink-500">
+                      <div className="text-xs text-slate-500">
                         {x.nameKo} · {x.material}
                       </div>
                     </div>
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed text-ink-600">{x.description}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-slate-600">{x.description}</p>
                   <div className="mt-4 space-y-2.5">
                     <ScoreBar label="Compatibility · 내용물 호환성" value={compat(x, concept)} />
                     <ScoreBar label="Protection · 보호 성능" value={x.protection} />
@@ -104,19 +104,19 @@ export default function Packaging() {
                   </div>
                   <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-ink-50 pt-4 text-sm">
                     <div>
-                      <dt className="text-[11px] text-ink-500">예상 단가 (용기+펌프)</dt>
+                      <dt className="text-[11px] text-slate-500">예상 단가 (용기+펌프)</dt>
                       <dd className="font-semibold text-ink-900">{krw(x.unitCost + x.pumpCost)}</dd>
                     </div>
                     <div>
-                      <dt className="text-[11px] text-ink-500">MOQ</dt>
+                      <dt className="text-[11px] text-slate-500">MOQ</dt>
                       <dd className="font-semibold text-ink-900">{x.moq.toLocaleString()}개</dd>
                     </div>
                     <div>
-                      <dt className="text-[11px] text-ink-500">차광</dt>
+                      <dt className="text-[11px] text-slate-500">차광</dt>
                       <dd className="text-ink-900">{x.lightBlocking ? '가능' : '불가'}</dd>
                     </div>
                     <div>
-                      <dt className="text-[11px] text-ink-500">Airless</dt>
+                      <dt className="text-[11px] text-slate-500">Airless</dt>
                       <dd className="text-ink-900">{x.airless ? '예' : '아니오'}</dd>
                     </div>
                   </dl>
@@ -138,7 +138,7 @@ export default function Packaging() {
             })}
           </div>
 
-          <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr]">
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
             <Section title="패키지 비교" subtitle="점수가 높을수록 좋음" action={<KindBadge kind="AI_ESTIMATE" />}>
               <div className="h-64">
                 <ResponsiveContainer>
@@ -155,14 +155,14 @@ export default function Packaging() {
                     <CartesianGrid vertical={false} stroke={GRID} />
                     <XAxis dataKey="m" tickLine={false} axisLine={false} tick={{ fill: AXIS, fontSize: 11 }} />
                     <YAxis domain={[0, 100]} tickLine={false} axisLine={false} tick={{ fill: AXIS, fontSize: 11 }} />
-                    <Tooltip cursor={{ fill: '#f6f1ec' }} content={({ active, payload, label }) => (active && payload?.length ? <TipBox title={String(label)} rows={payload.map((x) => ({ label: data.find((d) => d.id === x.dataKey)?.name ?? '', value: String(x.value), color: String(x.color) }))} /> : null)} />
+                    <Tooltip cursor={{ fill: '#f7f5fa' }} content={({ active, payload, label }) => (active && payload?.length ? <TipBox title={String(label)} rows={payload.map((x) => ({ label: data.find((d) => d.id === x.dataKey)?.name ?? '', value: String(x.value), color: String(x.color) }))} /> : null)} />
                     {data.map((x, i) => (
                       <Bar key={x.id} dataKey={x.id} fill={SERIES[i]} radius={[4, 4, 0, 0]} maxBarSize={22} />
                     ))}
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="mt-2 flex flex-wrap gap-3 text-xs text-ink-600">
+              <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
                 {data.map((x, i) => (
                   <span key={x.id} className="flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-sm" style={{ background: SERIES[i] }} /> {x.name}

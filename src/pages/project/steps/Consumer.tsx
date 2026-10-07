@@ -4,7 +4,7 @@ import { TrendingDown, TrendingUp } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { AiInsight } from '@/components/AiInsight';
 import { Heatmap, TipBox } from '@/components/charts';
-import { AnalyzingState, DemoBadge, MetricCard, PageIntro, Section, SourceNote, StatStrip } from '@/components/ui';
+import { AnalyzingState, DemoBadge, MetricCard, PageIntro, Section, SourceNote } from '@/components/ui';
 import { DEMO_SOURCE } from '@/data/mock';
 import { dataSource } from '@/data/source';
 import type { KeywordStat } from '@/data/types';
@@ -17,7 +17,7 @@ export default function Consumer() {
   const [pain, setPain] = useState('끈적임');
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <PageIntro no="04" title="Consumer Analysis" ko="소비자 니즈 분석" question="소비자는 무엇을 좋아하고, 무엇에 불만을 느끼나요?" right={<DemoBadge />} />
       {!data ? (
         <AnalyzingState />
@@ -30,14 +30,14 @@ export default function Consumer() {
           const series = data.months.map((m, i) => ({ month: m, pos: p.monthly[i], pain: n.monthly[i] }));
           return (
             <>
-              <StatStrip className="sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <MetricCard label="Reviews analyzed" value={data.sampleSize.toLocaleString()} sub="경쟁제품 리뷰 (최근 12개월)" kind="DEMO" />
                 <MetricCard label="Top need" value={fastestPos.term} sub={`언급 +${fastestPos.change}% 증가`} kind="AI_ANALYSIS" />
                 <MetricCard label="Top pain" value={fastestPain.term} sub={`언급 +${fastestPain.change}% 증가`} kind="AI_ANALYSIS" />
                 <MetricCard label="Pain share" value={`${Math.round((data.pains.reduce((a, x) => a + x.mentions, 0) / data.sampleSize) * 100)}%`} sub="불만 키워드가 포함된 리뷰 비율" kind="AI_ANALYSIS" />
-              </StatStrip>
+              </div>
 
-              <div className="grid gap-8 lg:grid-cols-2">
+              <div className="grid gap-6 lg:grid-cols-2">
                 <KeywordList title="Positive Needs" subtitle="소비자가 좋아하는 점 · 눌러서 추이 보기" items={data.positives} active={pos} onPick={setPos} tone="pos" />
                 <KeywordList title="Pain Points" subtitle="소비자가 불만인 점 · 눌러서 추이 보기" items={data.pains} active={pain} onPick={setPain} tone="pain" />
               </div>
@@ -65,7 +65,7 @@ export default function Consumer() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="mt-2 flex gap-4 text-xs text-ink-600">
+                <div className="mt-2 flex gap-4 text-xs text-slate-600">
                   <span className="flex items-center gap-1.5">
                     <span className="h-0.5 w-4" style={{ background: SERIES[0] }} /> {pos} (니즈)
                   </span>
@@ -79,7 +79,7 @@ export default function Consumer() {
 
               <Section title="어떤 피부 타입이 어떤 불만을 가장 많이 말하나요?" subtitle="피부 타입별 불만 언급 비중 (행 기준 %, 진할수록 많음)" action={<DemoBadge />}>
                 <Heatmap rows={data.skinTypes} cols={data.pains.map((x) => x.term)} values={data.heatmap} />
-                <p className="mt-3 text-xs text-ink-500">지성·복합성은 "끈적임·무거운 사용감", 민감성은 "자극"이 두드러집니다.</p>
+                <p className="mt-3 text-xs text-slate-500">지성·복합성은 "끈적임·무거운 사용감", 민감성은 "자극"이 두드러집니다.</p>
                 <SourceNote source={DEMO_SOURCE} className="mt-4 border-t border-ink-50 pt-3" />
               </Section>
             </>
@@ -103,12 +103,12 @@ function KeywordList({ title, subtitle, items, active, onPick, tone }: { title: 
             onClick={() => onPick(k.term)}
             className={clsx('grid w-full grid-cols-[96px_1fr_56px_60px] items-center gap-3 rounded-xl px-2 py-2 text-left transition', active === k.term ? 'bg-ink-50' : 'hover:bg-ink-50/50')}
           >
-            <span className={clsx('text-sm', active === k.term ? 'font-semibold text-ink-900' : 'text-ink-700')}>{k.term}</span>
+            <span className={clsx('text-sm', active === k.term ? 'font-semibold text-ink-900' : 'text-slate-700')}>{k.term}</span>
             <span className="h-2 rounded-full bg-ink-50">
               <span className="block h-2 rounded-full" style={{ width: `${(k.mentions / max) * 100}%`, background: color, opacity: active === k.term ? 1 : 0.55 }} />
             </span>
-            <span className="text-right text-xs tabular-nums text-ink-600">{k.mentions.toLocaleString()}</span>
-            <span className={clsx('flex items-center justify-end gap-0.5 text-xs font-semibold tabular-nums', k.change >= 0 ? 'text-ink-800' : 'text-ink-500')}>
+            <span className="text-right text-xs tabular-nums text-slate-600">{k.mentions.toLocaleString()}</span>
+            <span className={clsx('flex items-center justify-end gap-0.5 text-xs font-semibold tabular-nums', k.change >= 0 ? 'text-ink-800' : 'text-slate-500')}>
               {k.change >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
               {k.change > 0 ? '+' : ''}
               {k.change}%
@@ -143,22 +143,22 @@ function KeywordCloud({ positives, pains, pos, pain, onPos, onPain }: { positive
               style={{ fontSize: `${13 + t * 17}px` }}
               className={clsx(
                 'rounded-full px-3 py-1 font-semibold leading-tight transition',
-                k.tone === 'pos' ? 'bg-[#2f6fa8]/10 text-ink-900 hover:bg-[#2f6fa8]/20' : 'bg-[#8a2f4c]/10 text-ink-900 hover:bg-[#8a2f4c]/20',
-                active && (k.tone === 'pos' ? 'ring-2 ring-[#2f6fa8]' : 'ring-2 ring-[#8a2f4c]'),
+                k.tone === 'pos' ? 'bg-[#2a78d6]/10 text-ink-900 hover:bg-[#2a78d6]/20' : 'bg-[#eb6834]/10 text-ink-900 hover:bg-[#eb6834]/20',
+                active && (k.tone === 'pos' ? 'ring-2 ring-[#2a78d6]' : 'ring-2 ring-[#eb6834]'),
               )}
             >
               {k.term}
-              <span className="ml-1 align-middle text-[10px] font-medium text-ink-500">{k.mentions.toLocaleString()}</span>
+              <span className="ml-1 align-middle text-[10px] font-medium text-slate-500">{k.mentions.toLocaleString()}</span>
             </button>
           );
         })}
       </div>
-      <div className="flex justify-center gap-4 text-xs text-ink-600">
+      <div className="flex justify-center gap-4 text-xs text-slate-600">
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#2f6fa8]" /> 긍정 니즈
+          <span className="h-2.5 w-2.5 rounded-full bg-[#2a78d6]" /> 긍정 니즈
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#8a2f4c]" /> 불만
+          <span className="h-2.5 w-2.5 rounded-full bg-[#eb6834]" /> 불만
         </span>
       </div>
     </div>

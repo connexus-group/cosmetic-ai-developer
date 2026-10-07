@@ -1,56 +1,27 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Pretendard Variable", "Pretendard", "Inter", "Apple SD Gothic Neo", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
-  /* Editorial display face for page titles and headline numbers. */
-  --font-display: "Instrument Serif", "Pretendard Variable", Georgia, serif;
-
-  /*
-   * Beauty brand x AI research lab.
-   * ink      warm charcoal neutrals (text, lines, quiet surfaces)
-   * wine     primary accent: deep burgundy, used only for key data, AI picks, selection
-   * blush    secondary accent: dusty rose (labels, soft highlights)
-   * canvas   warm ivory page background; cards stay white
-   */
-  --color-ink-50: #f6f4f1;
-  --color-ink-100: #ece8e3;
-  --color-ink-200: #dcd6cf;
-  --color-ink-300: #bdb6ad;
-  --color-ink-400: #958d83;
-  --color-ink-500: #6f685f;
-  --color-ink-600: #524c45;
-  --color-ink-700: #3c3732;
-  --color-ink-800: #2a2622;
-  --color-ink-900: #1c1917;
-
-  --color-wine-50: #faf1f3;
-  --color-wine-100: #f3e1e5;
-  --color-wine-200: #e6c2ca;
-  --color-wine-300: #d199a6;
-  --color-wine-400: #b46f81;
-  --color-wine-500: #974b60;
-  --color-wine-600: #7d354b;
-  --color-wine-700: #67293d;
-  --color-wine-800: #512031;
-  --color-wine-900: #3b1824;
-
-  /* "champagne" is kept as the secondary-accent name used across pages: now dusty rose. */
-  --color-champagne-100: #f7eeee;
-  --color-champagne-300: #e8cfd2;
-  --color-champagne-500: #c79ca4;
-  --color-champagne-700: #8c5c66;
-
-  --color-canvas: #f8f5f0;
+  --font-sans: "Pretendard", "Inter", "Apple SD Gothic Neo", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;
+  /* Brand: deep aubergine ink with a champagne highlight — beauty-tech, premium, restrained. */
+  --color-ink-50: #f7f5fa;
+  --color-ink-100: #eeeaf4;
+  --color-ink-200: #dcd4e8;
+  --color-ink-300: #bfb1d4;
+  --color-ink-400: #9b86b8;
+  --color-ink-500: #7a619c;
+  --color-ink-600: #634a84;
+  --color-ink-700: #4f3a6b;
+  --color-ink-800: #3b2b51;
+  --color-ink-900: #261b36;
+  --color-champagne-100: #f6efe4;
+  --color-champagne-300: #e3cfae;
+  --color-champagne-500: #c8a97e;
+  --color-champagne-700: #8f7148;
+  --color-canvas: #faf8f5;
 }
 
 html, body, #root { min-height: 100%; }
-body {
-  @apply bg-canvas text-ink-800 antialiased;
-  word-break: keep-all;
-}
-
-/* Large editorial numbers and titles. */
-.font-display { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.01em; }
+body { @apply bg-canvas text-slate-800 antialiased; }
 
 .recharts-wrapper:focus, .recharts-surface:focus, .recharts-wrapper *:focus { outline: none; }
 
