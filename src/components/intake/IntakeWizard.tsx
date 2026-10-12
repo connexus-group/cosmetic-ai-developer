@@ -182,9 +182,15 @@ function FieldCard({ field, answer, spec, ctx, setAnswer, error }: { field: Spec
 
       <div className="mt-3">
         {field.input === 'markets' ? (
-          <MarketSelect value={value} onChange={setUser} />
+          <>
+            <MarketSelect value={value} onChange={setUser} />
+            {custom && <FreeInput label={field.label} placeholder="목록에 없는 국가 입력 후 Enter (예: 베트남)" onAdd={(v) => setUser([...value.filter((x) => x !== v), MARKETS.find((m) => m.label === v)?.value ?? v])} />}
+          </>
         ) : field.input === 'slider' ? (
-          <SliderInput labels={SLIDER_LABELS[field.id] ?? []} value={value[0]} onChange={(v) => setUser([v])} />
+          <>
+            <SliderInput labels={SLIDER_LABELS[field.id] ?? []} value={value[0]} onChange={(v) => setUser([v])} />
+            {custom && <FreeInput label={field.label} placeholder="원하는 내용을 직접 입력 후 Enter" onAdd={(v) => setUser([v])} />}
+          </>
         ) : field.input === 'text' ? (
           <input
             value={value.join(', ')}
@@ -201,7 +207,7 @@ function FieldCard({ field, answer, spec, ctx, setAnswer, error }: { field: Spec
             multi={field.input === 'multi'}
             value={value}
             onChange={setUser}
-            custom={custom && !!field.allowCustom}
+            custom={custom}
             label={field.label}
           />
         )}
@@ -222,7 +228,7 @@ function FieldCard({ field, answer, spec, ctx, setAnswer, error }: { field: Spec
         <ModeButton
           active={mode === 'user'}
           onClick={() => {
-            if (field.allowCustom) setCustom((c) => !c);
+            if (field.input !== 'text' && field.input !== 'tags') setCustom(true);
             if (answer && answer.mode !== 'user' && answer.mode !== 'unknown') setAnswer(field.id, { mode: 'user', value: answer.value });
             if (field.input === 'text' || field.input === 'tags') document.querySelector<HTMLInputElement>(`#field-${field.id} input`)?.focus();
           }}
@@ -319,6 +325,37 @@ function ChipSelect({ options, multi, value, onChange, custom, label }: { option
   );
 }
 
+function FreeInput({ label, placeholder, onAdd }: { label: string; placeholder: string; onAdd: (v: string) => void }) {
+  const [draft, setDraft] = useState('');
+  const add = () => {
+    const v = draft.trim();
+    if (!v) return;
+    onAdd(v);
+    setDraft('');
+  };
+  return (
+    <div className="mt-2 flex gap-1.5">
+      <input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            add();
+          }
+        }}
+        placeholder={placeholder}
+        aria-label={`${label} 직접 입력`}
+        className="min-w-0 flex-1 rounded-lg border border-ink-100 px-3 py-1.5 text-sm outline-none focus:border-ink-400"
+      />
+      <Button onClick={add} className="px-2.5 py-1.5">
+        <Plus size={14} /> 추가
+      </Button>
+    </div>
+  );
+}
+
 function TagInput({ value, onChange, placeholder, label }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string; label: string }) {
   const [draft, setDraft] = useState('');
   const add = () => {
@@ -380,7 +417,7 @@ function SliderInput({ labels, value, onChange }: { labels: string[]; value?: st
           </button>
         ))}
       </div>
-      <div className="mt-2 text-sm font-medium text-ink-900">{idx < 0 ? <span className="text-slate-400">슬라이더를 움직여 선택하세요</span> : labels[idx]}</div>
+      <div className="mt-2 text-sm font-medium text-ink-900">{idx >= 0 ? labels[idx] : value ? value : <span className="text-slate-400">슬라이더를 움직여 선택하세요</span>}</div>
     </div>
   );
 }
