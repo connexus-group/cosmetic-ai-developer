@@ -249,7 +249,7 @@ export function stepImpacts(p: Project, step: StepId, ctx: { costTotal?: number;
   const abroad = g.overseas.length > 0;
   switch (step) {
     case 'market':
-      add('ages', '연령대별 구매 비중 차트에서 타깃 연령을 강조했습니다.');
+      add('ages', '연령대별 구매 비중 차트에서 타깃 연령도 함께 강조했습니다.');
       add('channels', '채널별 비중 차트에서 선택한 판매 채널을 강조했습니다.');
       add('markets', abroad ? '시장 데이터(데모)는 국내 기준입니다. 해외 시장 데이터는 아직 연결되지 않았습니다.' : '국내 시장 데이터(데모)를 기준으로 분석합니다.', abroad ? 'warn' : 'info');
       break;

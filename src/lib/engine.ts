@@ -198,6 +198,7 @@ export function regulationItems(p: Project): RegulationItem[] {
   }
   items.push({ id: 'pdrn', area: 'Ingredient Review', title: '원료 규격·유래 확인', risk: 'LOW', detail: 'PDRN 등 유래 원료는 원료 규격서와 유래(어류 등) 표시를 확인해야 합니다.', action: '원료사 규격서 수령' });
   items.push({ id: 'label', area: 'Label Review', title: '전성분·사용상 주의사항 표시', risk: 'MEDIUM', detail: '전성분 표시 순서, 사용상 주의사항, 기능성 문구 위치 등 표시사항을 확인해야 합니다.', action: '디자인 확정 전 표시사항 검토' });
+  items.push({ id: 'export', area: 'Export', title: '해외 판매 시 국가별 규제', risk: 'LOW', detail: '국내 출시 기준입니다. 일본·미국 등 수출 시 성분·표시 기준을 별도로 확인해야 합니다.', action: '판매 국가 확정 후 규제 검토 필요' });
   // Conditions from the Product Blueprint add review items. None of them is judged as compliant.
   const g = signals(p);
   for (const f of g.functional) {
@@ -206,11 +207,7 @@ export function regulationItems(p: Project): RegulationItem[] {
   }
   if (g.scent === '향료 사용' || g.scent === '천연 유래 향 선호') items.push({ id: 'fragrance', area: 'Label Review', title: '향료 알레르기 유발 성분 표시', risk: 'LOW', detail: '향료를 사용하면 알레르기 유발 성분 표시 기준을 확인해야 합니다. 천연 유래 향도 동일하게 확인이 필요합니다.', action: '향료 조성표 수령 후 표시사항 규제 검토 필요' });
   for (const c of g.certifications) items.push({ id: `cert-${c}`, area: 'Label Review', title: `희망 인증: ${c}`, risk: 'LOW', detail: `${c} 인증은 인증 기관마다 원료·공정 요건이 다릅니다. 원료 유래와 제조 공정 서류가 필요할 수 있습니다.`, action: '인증 기관 요건 확인 필요' });
-  if (g.overseas.length) {
-    for (const m of g.overseas) items.push({ id: `export-${m}`, area: 'Export', title: `${marketLabel(m)} 판매 규제 확인`, risk: 'MEDIUM', detail: `선택한 판매 국가입니다. 원료 사용 가능 여부·표시 기준·등록 절차는 확인된 규제 데이터가 연결되지 않아 판정하지 않았습니다 (DEMO).`, action: `${marketLabel(m)} 화장품 규제 검토 필요` });
-  } else {
-    items.push({ id: 'export', area: 'Export', title: '해외 판매 시 국가별 규제', risk: 'LOW', detail: '국내 출시 기준입니다. 일본·미국 등 수출 시 성분·표시 기준을 별도로 확인해야 합니다.', action: '판매 국가 확정 후 규제 검토 필요' });
-  }
+  for (const m of g.overseas) items.push({ id: `export-${m}`, area: 'Export', title: `${marketLabel(m)} 판매 규제 확인`, risk: 'MEDIUM', detail: `선택한 판매 국가입니다. 원료 사용 가능 여부·표시 기준·등록 절차는 확인된 규제 데이터가 연결되지 않아 판정하지 않았습니다 (DEMO).`, action: `${marketLabel(m)} 화장품 규제 검토 필요` });
   return items;
 }
 

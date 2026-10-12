@@ -140,7 +140,7 @@ export default function Market() {
               </ul>
             </Section>
             <BandChart title="어느 가격대가 가장 클까요?" subtitle="가격대별 제품 분포" data={data.priceBands.map((b) => ({ name: b.band, value: b.share, hi: /3~4만원/.test(b.band) }))} />
-            <BandChart title="누가 가장 많이 살까요?" subtitle="연령대별 구매 비중" data={data.ageGroups.map((g) => ({ name: g.group, value: g.share, hi: ages.length ? ages.some((a) => a.slice(0, 2) === g.group.slice(0, 2)) : p.intake.target.value.startsWith(g.group.replace('대', '').replace('+', '')) }))} />
+            <BandChart title="누가 가장 많이 살까요?" subtitle="연령대별 구매 비중" data={data.ageGroups.map((g) => ({ name: g.group, value: g.share, hi: p.intake.target.value.startsWith(g.group.replace('대', '').replace('+', '')) || ages.some((a) => a.slice(0, 2) === g.group.slice(0, 2)) }))} />
           </div>
 
           <AiInsight insight={data.insight} />

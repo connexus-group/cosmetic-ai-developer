@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { DEFAULT_TESTS } from '@/data/mock';
 import type { ClarifyAnswer, Intake, Project, Spec, StepId } from '@/data/types';
 import { DEFAULT_CLAIM_COPY } from '@/lib/engine';
-import { intakeFromSpec, moqFrom, signals, specFromAnswers, specToAnswers } from '@/lib/spec';
+import { moqFrom, signals, specFromAnswers } from '@/lib/spec';
 
 /**
  * Project store. MVP persistence is the browser's localStorage.
@@ -90,7 +90,7 @@ const now = () => new Date().toISOString();
 interface Store {
   projects: Project[];
   get: (id: string | undefined) => Project | undefined;
-  create: (input: { name: string; idea: string; intake: Intake; spec: Spec }) => Project;
+  create: (input: { name: string; idea: string; intake: Intake; answers: Project['answers']; spec?: Spec }) => Project;
   update: (id: string, fn: (p: Project) => Project) => void;
   remove: (id: string) => void;
   markVisited: (id: string, step: StepId) => void;
@@ -110,9 +110,10 @@ export function ProjectStoreProvider({ children }: { children: ReactNode }) {
     setProjects((list) => list.map((p) => (p.id === id ? { ...fn(p), updatedAt: now() } : p)));
   }, []);
 
-  const create: Store['create'] = useCallback(({ name, idea, intake, spec }) => {
+  const create: Store['create'] = useCallback(({ name, idea, intake, answers, spec = {} }) => {
     const t = now();
-    // The detailed intake sets the starting values of later steps; every one stays editable there.
+    const priceAnswer = answers.targetPrice?.mode === 'user' ? Number(answers.targetPrice.value.replace(/[^\d]/g, '')) : NaN;
+    // The optional detailed intake adds starting values for later steps; every one stays editable there.
     const g = signals({ spec });
     const project: Project = {
       id: slugId(name, new Set(latest.current.map((x) => x.id))),
@@ -120,18 +121,18 @@ export function ProjectStoreProvider({ children }: { children: ReactNode }) {
       createdAt: t,
       updatedAt: t,
       idea,
-      intake: intakeFromSpec(intake, spec),
-      answers: specToAnswers(spec),
+      intake,
+      answers,
       spec,
       visited: {},
       changed: { intake: t },
       moq: moqFrom(spec) ?? 5000,
-      retailPrice: g.targetPrice && g.targetPrice > 1000 ? g.targetPrice : 32000,
+      retailPrice: Number.isFinite(priceAnswer) && priceAnswer > 1000 ? priceAnswer : 32000,
       channelFeeRate: 0.35,
       costOverrides: {},
       tests: { ...DEFAULT_TESTS, ...(g.sensitive || g.lowIrritation ? { irritation: true, sensitive: true } : {}) },
       // Decisions already made in the intake are pre-checked.
-      checklist: { price: !!g.targetPrice, country: g.markets.length > 0, cost: !!g.targetCost },
+      checklist: { price: true, country: true, ...(g.targetCost ? { cost: true } : {}) },
       claimCopy: g.claimCopy ?? DEFAULT_CLAIM_COPY,
       brief: {},
     };
