@@ -30,3 +30,11 @@ body { @apply bg-canvas text-slate-800 antialiased; }
   body { background: #fff; }
   .print-sheet { box-shadow: none !important; border: none !important; }
 }
+
+/* Horizontal step lists scroll without a visible bar on small screens. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

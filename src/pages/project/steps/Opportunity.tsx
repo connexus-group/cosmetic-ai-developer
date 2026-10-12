@@ -11,6 +11,7 @@ import type { GapPosition } from '@/data/types';
 import { AXIS, GRID, SERIES } from '@/lib/colors';
 import { useAsync } from '@/lib/useAsync';
 import { useProject } from '../ProjectLayout';
+import { SpecNotes } from './SpecNotes';
 
 export default function Opportunity() {
   const { project: p } = useProject();
@@ -19,6 +20,7 @@ export default function Opportunity() {
   return (
     <div className="space-y-6">
       <PageIntro no="06" title="Market Gap & Opportunity" ko="시장 기회 분석" question="어느 영역에 제품을 출시해야 경쟁은 피하고 수요는 잡을 수 있을까요?" right={<DemoBadge />} />
+      <SpecNotes step="opportunity" />
       {!data ? (
         <AnalyzingState />
       ) : (

@@ -11,6 +11,8 @@ import { AXIS, GRID, SERIES } from '@/lib/colors';
 import { krw } from '@/lib/engine';
 import { useAsync } from '@/lib/useAsync';
 import { useProject } from '../ProjectLayout';
+import { FlagList, SpecNotes } from './SpecNotes';
+import { conceptFlags, type Flag } from '@/lib/spec';
 
 const SCORE_LABELS: [keyof ConceptOption['scores'], string, string][] = [
   ['marketability', 'Marketability', '시장성'],
@@ -40,13 +42,14 @@ export default function Concept() {
   return (
     <div className="space-y-6">
       <PageIntro no="07" title="AI Product Concept" ko="AI 제품 컨셉 3안" question="시장조사 결과를 바탕으로, 어떤 제품을 만들면 좋을까요?" right={<KindBadge kind="AI_ANALYSIS" />} />
+      <SpecNotes step="concept" />
       {!data ? (
         <AnalyzingState label="AI가 시장조사 결과로 제품 컨셉을 설계하고 있어요" />
       ) : (
         <>
           <div className="grid gap-5 xl:grid-cols-3">
             {data.map((c, i) => (
-              <ConceptCard key={c.id} c={c} color={SERIES[i]} selected={p.conceptId === c.id} onChoose={() => choose(c)} />
+              <ConceptCard key={c.id} c={c} color={SERIES[i]} selected={p.conceptId === c.id} onChoose={() => choose(c)} flags={conceptFlags(p, c)} />
             ))}
           </div>
 
@@ -92,7 +95,7 @@ export default function Concept() {
   );
 }
 
-function ConceptCard({ c, color, selected, onChoose }: { c: ConceptOption; color: string; selected: boolean; onChoose: () => void }) {
+function ConceptCard({ c, color, selected, onChoose, flags }: { c: ConceptOption; color: string; selected: boolean; onChoose: () => void; flags: Flag[] }) {
   return (
     <Card className={clsx('flex flex-col overflow-hidden', c.recommended && 'border-ink-400 ring-2 ring-ink-200', selected && 'ring-2 ring-champagne-500')}>
       <div className="relative bg-gradient-to-br from-ink-50 to-white px-6 pb-5 pt-6">
@@ -112,6 +115,7 @@ function ConceptCard({ c, color, selected, onChoose }: { c: ConceptOption; color
           </div>
         </div>
         <p className="mt-3 text-sm leading-relaxed text-slate-700">{c.oneLiner}</p>
+        <FlagList flags={flags} className="mt-3" />
       </div>
       <div className="space-y-2.5 border-t border-ink-50 px-6 py-5">
         {SCORE_LABELS.map(([k, en, ko]) => (

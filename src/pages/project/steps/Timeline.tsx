@@ -7,6 +7,7 @@ import { CHECKLIST } from '@/data/mock';
 import type { ChecklistItem } from '@/data/types';
 import { effectiveConcept, progressOf, timelineOf } from '@/lib/engine';
 import { useProject } from '../ProjectLayout';
+import { SpecNotes } from './SpecNotes';
 
 const GROUPS: ChecklistItem['group'][] = ['기획', '개발', '검증', '생산·출시'];
 const PHASE_DOT = { plan: 'bg-ink-300', develop: 'bg-ink-600', verify: 'bg-champagne-500', launch: 'bg-ink-900' } as const;
@@ -22,6 +23,7 @@ export default function Timeline() {
   return (
     <div className="space-y-6">
       <PageIntro no="14" title="Development Timeline" ko="개발 일정 · 체크리스트" question="언제 출시할 수 있고, 무엇부터 해야 할까요?" right={<KindBadge kind="AI_ESTIMATE" />} />
+      <SpecNotes step="timeline" weeks={weeks} />
 
       <div className="grid gap-4 md:grid-cols-[1fr_1fr_1.3fr]">
         <Card className="flex items-center gap-4 bg-gradient-to-br from-ink-900 to-ink-700 p-6 text-white">

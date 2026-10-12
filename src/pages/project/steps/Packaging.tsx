@@ -12,6 +12,8 @@ import { effectiveConcept, formulaOf, krw } from '@/lib/engine';
 import { useAsync } from '@/lib/useAsync';
 import { useProject } from '../ProjectLayout';
 import { PreviewBanner } from './PreviewBanner';
+import { MatchTag, SpecNotes } from './SpecNotes';
+import { signals } from '@/lib/spec';
 
 function recommend(c: ConceptOption): PackageId {
   return c.actives.includes('Retinal') || c.hero === 'NAD+' ? 'airless' : 'dropper';
@@ -40,6 +42,7 @@ function technicalNotes(c: ConceptOption, f: FormulaOption | undefined): { ok: b
 
 export default function Packaging() {
   const { project: p, update, touch } = useProject();
+  const g = signals(p);
   const navigate = useNavigate();
   const concept = effectiveConcept(p);
   const formula = formulaOf(p);
@@ -55,6 +58,7 @@ export default function Packaging() {
   return (
     <div className="space-y-6">
       <PageIntro no="10" title="Packaging" ko="패키지 추천" question="내용물을 지키면서 브랜드에도 맞는 용기는 무엇일까요?" right={<KindBadge kind="AI_ANALYSIS" />} />
+      <SpecNotes step="packaging" />
       {!p.conceptId && <PreviewBanner projectId={p.id} step="concept" what="제품 컨셉" />}
       {p.conceptId && !p.formulaId && <PreviewBanner projectId={p.id} step="formula" what="제형" />}
       {!data ? (
@@ -82,7 +86,10 @@ export default function Packaging() {
                     <span className="text-[11px] font-bold tracking-[0.18em]" style={{ color: SERIES[i] }}>
                       OPTION {String.fromCharCode(65 + i)}
                     </span>
-                    {rec && <AiPill>AI RECOMMENDED PACKAGE</AiPill>}
+                    <span className="flex flex-wrap justify-end gap-1">
+                      {g.packageId === x.id && <MatchTag>희망 용기 일치</MatchTag>}
+                      {rec && <AiPill>AI RECOMMENDED PACKAGE</AiPill>}
+                    </span>
                   </div>
                   <div className="mt-3 flex items-center gap-3">
                     <div className="grid h-11 w-11 place-items-center rounded-2xl bg-ink-50 text-ink-700">

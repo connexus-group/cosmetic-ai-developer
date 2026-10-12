@@ -10,6 +10,9 @@ import { useAsync } from '@/lib/useAsync';
 import { useProject } from '../ProjectLayout';
 import { PreviewBanner } from './PreviewBanner';
 import { StageBadge } from './Trend';
+import { FlagList, SpecNotes } from './SpecNotes';
+import { ingredientFlags, mentions, signals, type Flag } from '@/lib/spec';
+import { marketLabel } from '@/data/intakeSpec';
 
 const TIERS: { id: IngredientTier; label: string; desc: string; cls: string }[] = [
   { id: 'HERO', label: 'HERO INGREDIENT', desc: '제품의 얼굴. 마케팅 메시지의 중심', cls: 'from-ink-900 to-ink-700 text-white' },
@@ -25,10 +28,13 @@ export default function Ingredients() {
   const { data } = useAsync(() => dataSource.ingredients(concept.id), `ingredients-${concept.id}`);
   const [open, setOpen] = useState<string | null>(null);
   const sel = data?.find((x) => x.id === open);
+  const g = signals(p);
+  const outside = g.mustInclude.filter((m) => !(data ?? []).some((x) => mentions([m], x.id)));
 
   return (
     <div className="space-y-6">
       <PageIntro no="09" title="Ingredient Strategy" ko="원료 추천" question="어떤 원료를 어떤 역할로 조합해야 할까요?" right={<KindBadge kind="AI_ANALYSIS" />} />
+      <SpecNotes step="ingredients" />
       {!p.conceptId && <PreviewBanner projectId={p.id} step="concept" what="제품 컨셉" />}
       <div className="rounded-xl bg-ink-50/70 px-4 py-3 text-xs text-ink-800">
         기준: <b>{concept.name}</b>
@@ -44,6 +50,11 @@ export default function Ingredients() {
       ) : (
         <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
           <div className="space-y-4">
+            {outside.length > 0 && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-xs text-amber-900">
+                <b>추천 목록에 없는 요청 원료:</b> {outside.join(', ')} · 처방 반영 여부와 함량은 제조사·원료사 확인이 필요합니다.
+              </div>
+            )}
             {TIERS.map((t) => (
               <Card key={t.id} className="overflow-hidden">
                 <div className={clsx('flex items-center justify-between bg-gradient-to-r px-5 py-3', t.cls)}>
@@ -66,6 +77,7 @@ export default function Ingredients() {
                         </div>
                         <div className="mt-0.5 text-[11px] text-slate-500">INCI: {x.inci ?? '확인 필요'}</div>
                         <div className="mt-2 line-clamp-2 text-xs text-slate-600">{x.role}</div>
+                        <FlagList flags={ingredientFlags(p, x).filter((f) => !f.text.includes('판매:'))} className="mt-2" />
                       </button>
                     ))}
                 </div>
@@ -82,12 +94,12 @@ export default function Ingredients() {
             />
           </div>
           <div className="hidden xl:block">
-            <div className="sticky top-20">{sel ? <Detail x={sel} onClose={() => setOpen(null)} /> : <Card className="p-8 text-center text-sm text-slate-500">원료 카드를 누르면 상세 정보가 여기에 열립니다.</Card>}</div>
+            <div className="sticky top-20">{sel ? <Detail x={sel} flags={ingredientFlags(p, sel)} markets={g.markets} onClose={() => setOpen(null)} /> : <Card className="p-8 text-center text-sm text-slate-500">원료 카드를 누르면 상세 정보가 여기에 열립니다.</Card>}</div>
           </div>
           {sel && (
             <div className="fixed inset-0 z-40 flex items-end bg-ink-900/40 p-3 xl:hidden" onClick={() => setOpen(null)}>
               <div className="max-h-[85vh] w-full overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <Detail x={sel} onClose={() => setOpen(null)} />
+                <Detail x={sel} flags={ingredientFlags(p, sel)} markets={g.markets} onClose={() => setOpen(null)} />
               </div>
             </div>
           )}
@@ -97,7 +109,7 @@ export default function Ingredients() {
   );
 }
 
-function Detail({ x, onClose }: { x: IngredientInfo; onClose: () => void }) {
+function Detail({ x, flags, markets, onClose }: { x: IngredientInfo; flags: Flag[]; markets: string[]; onClose: () => void }) {
   const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
     <div className="border-t border-ink-50 py-3">
       <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</div>
@@ -124,6 +136,24 @@ function Detail({ x, onClose }: { x: IngredientInfo; onClose: () => void }) {
         <Row label="Evidence · 근거">{x.evidence ?? <Unverified label="데이터 없음 · 임상/연구자료 확인 필요" />}</Row>
         <Row label="Formulation Notes · 배합 노트">{x.formulationNotes}</Row>
         <Row label="Risk / Caution · 주의사항">{x.caution}</Row>
+        {flags.length > 0 && (
+          <Row label="입력 조건 검토">
+            <FlagList flags={flags} />
+          </Row>
+        )}
+        {markets.length > 0 && (
+          <Row label="판매 국가별 확인">
+            <div className="space-y-1.5">
+              {markets.map((m) => (
+                <div key={m} className="flex items-center justify-between gap-2 text-[13px]">
+                  <span>{marketLabel(m)}</span>
+                  <Unverified label="확인 필요 · 규제 데이터 미연결" />
+                </div>
+              ))}
+              <p className="text-[11px] text-slate-500">국가별 사용 가능 여부는 확인된 규제 데이터가 없어 판정하지 않습니다.</p>
+            </div>
+          </Row>
+        )}
         <Row label="원료사 · 가격 · MOQ">
           <div className="flex flex-wrap gap-1.5">
             <Unverified label="원료사 확인 필요" />

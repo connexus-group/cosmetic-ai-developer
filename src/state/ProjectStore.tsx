@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DEFAULT_TESTS } from '@/data/mock';
-import type { ClarifyAnswer, Intake, Project, StepId } from '@/data/types';
+import type { ClarifyAnswer, Intake, Project, Spec, StepId } from '@/data/types';
 import { DEFAULT_CLAIM_COPY } from '@/lib/engine';
+import { intakeFromSpec, moqFrom, signals, specFromAnswers, specToAnswers } from '@/lib/spec';
 
 /**
  * Project store. MVP persistence is the browser's localStorage.
@@ -47,6 +48,7 @@ function normalize(raw: unknown): Project | null {
     createdAt: t,
     updatedAt: typeof p.updatedAt === 'string' ? p.updatedAt : t,
     changed: { intake: t, ...(p.changed ?? {}) },
+    spec: p.spec && typeof p.spec === 'object' ? p.spec : specFromAnswers(p.answers && typeof p.answers === 'object' ? p.answers : {}),
     intake,
   } as Project;
 }
@@ -88,7 +90,7 @@ const now = () => new Date().toISOString();
 interface Store {
   projects: Project[];
   get: (id: string | undefined) => Project | undefined;
-  create: (input: { name: string; idea: string; intake: Intake; answers: Project['answers'] }) => Project;
+  create: (input: { name: string; idea: string; intake: Intake; spec: Spec }) => Project;
   update: (id: string, fn: (p: Project) => Project) => void;
   remove: (id: string) => void;
   markVisited: (id: string, step: StepId) => void;
@@ -108,27 +110,29 @@ export function ProjectStoreProvider({ children }: { children: ReactNode }) {
     setProjects((list) => list.map((p) => (p.id === id ? { ...fn(p), updatedAt: now() } : p)));
   }, []);
 
-  const create: Store['create'] = useCallback(({ name, idea, intake, answers }) => {
+  const create: Store['create'] = useCallback(({ name, idea, intake, spec }) => {
     const t = now();
-    const priceAnswer = answers.targetPrice?.mode === 'user' ? Number(answers.targetPrice.value.replace(/[^\d]/g, '')) : NaN;
+    // The detailed intake sets the starting values of later steps; every one stays editable there.
+    const g = signals({ spec });
     const project: Project = {
       id: slugId(name, new Set(latest.current.map((x) => x.id))),
       name,
       createdAt: t,
       updatedAt: t,
       idea,
-      intake,
-      answers,
+      intake: intakeFromSpec(intake, spec),
+      answers: specToAnswers(spec),
+      spec,
       visited: {},
       changed: { intake: t },
-      moq: 5000,
-      retailPrice: Number.isFinite(priceAnswer) && priceAnswer > 1000 ? priceAnswer : 32000,
+      moq: moqFrom(spec) ?? 5000,
+      retailPrice: g.targetPrice && g.targetPrice > 1000 ? g.targetPrice : 32000,
       channelFeeRate: 0.35,
       costOverrides: {},
-      tests: { ...DEFAULT_TESTS },
+      tests: { ...DEFAULT_TESTS, ...(g.sensitive || g.lowIrritation ? { irritation: true, sensitive: true } : {}) },
       // Decisions already made in the intake are pre-checked.
-      checklist: { price: true, country: true },
-      claimCopy: DEFAULT_CLAIM_COPY,
+      checklist: { price: !!g.targetPrice, country: g.markets.length > 0, cost: !!g.targetCost },
+      claimCopy: g.claimCopy ?? DEFAULT_CLAIM_COPY,
       brief: {},
     };
     latest.current = [project, ...latest.current];

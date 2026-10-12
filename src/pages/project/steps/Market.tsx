@@ -6,15 +6,19 @@ import { dataSource } from '@/data/source';
 import { ACCENT, AXIS, CHAMPAGNE, GRID, MUTED } from '@/lib/colors';
 import { useAsync } from '@/lib/useAsync';
 import { useProject } from '../ProjectLayout';
+import { SpecNotes } from './SpecNotes';
+import { signals } from '@/lib/spec';
 
 export default function Market() {
   const { project: p } = useProject();
   const { data } = useAsync(() => dataSource.market(), 'market');
   const targetChannels = p.intake.channel.value.split(/\s*\/\s*/);
+  const ages = signals(p).ages;
 
   return (
     <div className="space-y-6">
       <PageIntro no="02" title="Market Analysis" ko="시장 분석" question="이 카테고리 시장은 얼마나 크고, 계속 성장하고 있나요?" right={<DemoBadge />} />
+      <SpecNotes step="market" />
       {!data ? (
         <AnalyzingState />
       ) : (
@@ -136,7 +140,7 @@ export default function Market() {
               </ul>
             </Section>
             <BandChart title="어느 가격대가 가장 클까요?" subtitle="가격대별 제품 분포" data={data.priceBands.map((b) => ({ name: b.band, value: b.share, hi: /3~4만원/.test(b.band) }))} />
-            <BandChart title="누가 가장 많이 살까요?" subtitle="연령대별 구매 비중" data={data.ageGroups.map((g) => ({ name: g.group, value: g.share, hi: p.intake.target.value.startsWith(g.group.replace('대', '').replace('+', '')) }))} />
+            <BandChart title="누가 가장 많이 살까요?" subtitle="연령대별 구매 비중" data={data.ageGroups.map((g) => ({ name: g.group, value: g.share, hi: ages.length ? ages.some((a) => a.slice(0, 2) === g.group.slice(0, 2)) : p.intake.target.value.startsWith(g.group.replace('대', '').replace('+', '')) }))} />
           </div>
 
           <AiInsight insight={data.insight} />

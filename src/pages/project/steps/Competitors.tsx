@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import { Star } from 'lucide-react';
-import { CartesianGrid, ReferenceArea, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from 'recharts';
+import { CartesianGrid, ReferenceArea, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from 'recharts';
 import { AiInsight } from '@/components/AiInsight';
 import { TipBox } from '@/components/charts';
 import { AnalyzingState, Card, DemoBadge, KindBadge, MetricCard, PageIntro, Section, Segmented, SourceNote } from '@/components/ui';
@@ -12,11 +12,14 @@ import { AXIS, GRID, SERIES } from '@/lib/colors';
 import { conceptOf, krw } from '@/lib/engine';
 import { useAsync } from '@/lib/useAsync';
 import { useProject } from '../ProjectLayout';
+import { SpecNotes } from './SpecNotes';
+import { signals } from '@/lib/spec';
 
 const perMl = (c: Competitor) => Math.round(c.price / c.sizeMl);
 
 export default function Competitors() {
   const { project: p } = useProject();
+  const targetPrice = signals(p).targetPrice;
   const { data } = useAsync(() => dataSource.competitors(), 'competitors');
   const [view, setView] = useState<'cards' | 'table'>('cards');
   const [selected, setSelected] = useState<string | null>(null);
@@ -59,6 +62,7 @@ export default function Competitors() {
                   );
                 }}
               />
+              {targetPrice && <ReferenceLine x={targetPrice} stroke={AXIS} strokeDasharray="4 4" label={{ value: '목표 판매가', position: 'top', fill: AXIS, fontSize: 11 }} />}
               <Scatter name="경쟁제품" data={items} fill={SERIES[0]} fillOpacity={0.75} stroke="#fff" strokeWidth={2} onClick={(d: { payload?: Competitor }) => d.payload && setSelected(d.payload.id)} />
               <Scatter name="우리 제품" data={[ours]} fill={SERIES[1]} stroke="#fff" strokeWidth={2} shape="diamond" />
             </ScatterChart>
@@ -124,6 +128,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="space-y-6">
       <PageIntro no="03" title="Competitor Analysis" ko="경쟁제품 분석" question="비슷한 제품은 누가, 얼마에, 어떤 메시지로 팔고 있나요?" right={<DemoBadge />} />
+      <SpecNotes step="competitors" />
       {children}
     </div>
   );

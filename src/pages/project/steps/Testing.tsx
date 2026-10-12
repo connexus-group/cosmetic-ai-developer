@@ -7,6 +7,7 @@ import type { TestItem } from '@/data/types';
 import { effectiveConcept } from '@/lib/engine';
 import { useAsync } from '@/lib/useAsync';
 import { useProject } from '../ProjectLayout';
+import { SpecNotes } from './SpecNotes';
 
 const GROUPS: { id: TestItem['group']; title: string; desc: string; cls: string }[] = [
   { id: 'REQUIRED', title: 'REQUIRED', desc: '출시를 위해 반드시 필요한 시험', cls: 'bg-ink-900 text-white' },
@@ -23,6 +24,7 @@ export default function Testing() {
   return (
     <div className="space-y-6">
       <PageIntro no="13" title="Testing" ko="필요 시험" question="출시 전에 어떤 시험을 해야 하고, 광고에 쓸 근거는 무엇일까요?" right={<KindBadge kind="AI_ANALYSIS" />} />
+      <SpecNotes step="testing" />
       {!data ? (
         <AnalyzingState />
       ) : (

@@ -6,6 +6,7 @@ import type { RegulationItem } from '@/data/types';
 import { checkClaims, DEFAULT_CLAIM_COPY, effectiveConcept, regulationItems } from '@/lib/engine';
 import { useProject } from '../ProjectLayout';
 import { PreviewBanner } from './PreviewBanner';
+import { SpecNotes } from './SpecNotes';
 
 const AREAS: { id: RegulationItem['area']; ko: string }[] = [
   { id: 'Functional Cosmetic', ko: '기능성화장품' },
@@ -26,6 +27,7 @@ export default function Regulation() {
   return (
     <div className="space-y-6">
       <PageIntro no="12" title="Regulation Check" ko="규제 검토" question="출시 전에 어떤 규제 사항을 확인해야 할까요?" right={<KindBadge kind="AI_ANALYSIS" />} />
+      <SpecNotes step="regulation" />
       {!p.conceptId && <PreviewBanner projectId={p.id} step="concept" what="제품 컨셉" />}
       <div className="flex items-start gap-3 rounded-xl border border-ink-100 bg-white px-4 py-3 text-xs text-slate-600">
         <Scale size={16} className="mt-0.5 shrink-0 text-ink-500" />

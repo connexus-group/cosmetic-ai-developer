@@ -34,6 +34,7 @@ const KIND: Record<DataKind, { label: string; cls: string; desc: string }> = {
   AI_ANALYSIS: { label: 'AI ANALYSIS', cls: 'bg-ink-50 text-ink-700 ring-ink-200', desc: 'AI(현재는 규칙 기반 데모 엔진)가 해석한 결과입니다.' },
   AI_ESTIMATE: { label: 'AI 추정', cls: 'bg-violet-50 text-violet-800 ring-violet-200', desc: 'AI가 추정한 예상값입니다. 실제 데이터가 아닙니다.' },
   USER_INPUT: { label: 'USER INPUT', cls: 'bg-slate-100 text-slate-700 ring-slate-200', desc: '사용자가 직접 입력한 값입니다.' },
+  DEMO_RECOMMEND: { label: '데모 추천', cls: 'bg-amber-50 text-amber-800 ring-amber-200', desc: '실제 AI API가 아닌 규칙 기반 데모 추천입니다. 검증된 시장조사 결과가 아닌 가설입니다.' },
 };
 
 export function KindBadge({ kind, className }: { kind: DataKind; className?: string }) {

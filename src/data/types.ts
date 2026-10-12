@@ -7,7 +7,7 @@
  */
 
 /** Data trust classes. The UI shows each as a badge so estimates never look like facts. */
-export type DataKind = 'VERIFIED' | 'EXTERNAL' | 'AI_ANALYSIS' | 'AI_ESTIMATE' | 'USER_INPUT' | 'DEMO';
+export type DataKind = 'VERIFIED' | 'EXTERNAL' | 'AI_ANALYSIS' | 'AI_ESTIMATE' | 'USER_INPUT' | 'DEMO' | 'DEMO_RECOMMEND';
 
 export interface SourceRef {
   sourceName: string;
@@ -51,6 +51,40 @@ export interface ClarifyQuestion {
 
 export type ClarifyAnswer = { mode: 'user' | 'unknown' | 'ai'; value: string };
 
+// ── Detailed intake (6-step wizard) ─────────────────────────────────────────
+
+export type SpecGroupId = 'product' | 'target' | 'formula' | 'ingredients' | 'commercial' | 'global';
+
+export type SpecFieldId =
+  // A. Product
+  | 'category' | 'subtype' | 'purpose' | 'benefits' | 'differentiation' | 'keywords'
+  // B. Target
+  | 'ages' | 'gender' | 'skinTypes' | 'concerns' | 'usage' | 'priceSensitivity'
+  // C. Formula & sensory
+  | 'textureType' | 'viscosity' | 'absorption' | 'stickiness' | 'finish' | 'scent' | 'appearance'
+  // D. Ingredients
+  | 'mustInclude' | 'exclude' | 'functional' | 'vegan' | 'lowIrritation' | 'natural' | 'supplier'
+  // E. Commercial & packaging
+  | 'targetPrice' | 'targetCost' | 'size' | 'firstRun' | 'launchTiming' | 'container' | 'designDirection' | 'benchmark' | 'channels'
+  // F. Global & regulatory
+  | 'markets' | 'priorityMarket' | 'overseasReview' | 'certifications' | 'claimCopy' | 'adReview';
+
+/**
+ * One answer in the detailed intake.
+ * - user: typed or picked by the user
+ * - idea: extracted from the free-text idea by the demo analyzer
+ * - ai: demo recommendation (rule-based, no AI API) — always shown as "데모 추천", a hypothesis
+ * - unknown: the user said "잘 모르겠어요"; later steps treat it as 미정
+ * Values are always a list so single and multi selects share one shape.
+ */
+export interface SpecAnswer {
+  mode: 'user' | 'idea' | 'ai' | 'unknown';
+  value: string[];
+  /** why the demo recommendation was made */
+  reason?: string;
+}
+export type Spec = Partial<Record<SpecFieldId, SpecAnswer>>;
+
 export const STEP_IDS = [
   'overview',
   'market',
@@ -85,6 +119,8 @@ export interface Project {
   idea: string;
   intake: Intake;
   answers: Partial<Record<ClarifyQuestion['id'], ClarifyAnswer>>;
+  /** detailed intake from the 6-step wizard (Product Blueprint) */
+  spec: Spec;
   /** when each step was last opened (ISO) */
   visited: Partial<Record<StepId, string>>;
   /** when each upstream decision last changed (ISO) — drives "재검토 필요" */

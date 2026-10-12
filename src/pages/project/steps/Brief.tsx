@@ -12,6 +12,7 @@ const SECTIONS: { id: BriefField['section']; title: string }[] = [
   { id: 'Product', title: '02 · Product Specification' },
   { id: 'Commercial', title: '03 · Commercial Conditions' },
   { id: 'Compliance', title: '04 · Testing · Regulation · Schedule' },
+  { id: 'Blueprint', title: '05 · Product Blueprint · 입력한 개발 조건' },
 ];
 
 export default function Brief() {
@@ -112,7 +113,7 @@ export default function Brief() {
                         <dt className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                           {f.label} <span className="normal-case tracking-normal text-slate-400">· {f.ko}</span>
                           <span className="no-print ml-auto flex items-center gap-1.5">
-                            <KindBadge kind={edited ? 'USER_INPUT' : f.basis === 'ai' ? 'AI_ANALYSIS' : f.basis === 'calc' ? 'AI_ESTIMATE' : 'USER_INPUT'} />
+                            <KindBadge kind={edited ? 'USER_INPUT' : f.kind ?? (f.basis === 'ai' ? 'AI_ANALYSIS' : f.basis === 'calc' ? 'AI_ESTIMATE' : 'USER_INPUT')} />
                             {edited && (
                               <button type="button" onClick={() => reset(f.key)} title="자동 생성값으로 되돌리기" className="text-slate-400 hover:text-ink-700">
                                 <RotateCcw size={12} />

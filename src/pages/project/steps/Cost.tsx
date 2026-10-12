@@ -1,5 +1,5 @@
 import { RotateCcw } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { AiInsight } from '@/components/AiInsight';
 import { TipBox } from '@/components/charts';
 import { Button, Card, DemoBadge, KindBadge, MetricCard, PageIntro, Section, Segmented } from '@/components/ui';
@@ -9,6 +9,8 @@ import { ACCENT, AXIS, CHAMPAGNE, GRID, MUTED } from '@/lib/colors';
 import { costDefaults, costSummary, effectiveConcept, formulaOf, krw, packageOf, pct } from '@/lib/engine';
 import { useProject } from '../ProjectLayout';
 import { PreviewBanner } from './PreviewBanner';
+import { SpecNotes } from './SpecNotes';
+import { signals } from '@/lib/spec';
 
 const MOQS: Moq[] = [3000, 5000, 10000];
 
@@ -17,6 +19,7 @@ export default function Cost() {
   const concept = effectiveConcept(p);
   const s = costSummary(p);
   const defaults = costDefaults(p);
+  const targetCost = signals(p).targetCost;
   const byMoq = MOQS.map((m) => ({ moq: m, label: `${m.toLocaleString()}ea`, total: costSummary(p, m).total }));
   const vat = p.retailPrice - p.retailPrice / 1.1;
   const fee = (p.retailPrice / 1.1) * p.channelFeeRate;
@@ -42,6 +45,7 @@ export default function Cost() {
   return (
     <div className="space-y-6">
       <PageIntro no="11" title="Cost Simulator" ko="목표 원가 계산" question="얼마에 만들어서 얼마에 팔면 남을까요?" right={<DemoBadge />} />
+      <SpecNotes step="cost" costTotal={s.total} />
       {(!p.conceptId || !p.formulaId || !p.packageId) && <PreviewBanner projectId={p.id} step={!p.conceptId ? 'concept' : !p.formulaId ? 'formula' : 'packaging'} what={!p.conceptId ? '제품 컨셉' : !p.formulaId ? '제형' : '패키지'} />}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -143,7 +147,8 @@ export default function Cost() {
                 <BarChart data={byMoq} margin={{ top: 22, right: 8, left: -8, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke={GRID} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: AXIS, fontSize: 11 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: AXIS, fontSize: 11 }} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fill: AXIS, fontSize: 11 }} domain={[0, (max: number) => Math.max(max, targetCost ?? 0) * 1.1]} />
+                  {targetCost && <ReferenceLine y={targetCost} stroke={AXIS} strokeDasharray="4 4" label={{ value: `목표 ${krw(targetCost)}`, position: 'insideTopRight', fill: AXIS, fontSize: 11 }} />}
                   <Tooltip cursor={{ fill: '#f7f5fa' }} content={({ active, payload }) => (active && payload?.[0] ? <TipBox title={String(payload[0].payload.label)} rows={[{ label: '개당 제조원가', value: krw(Number(payload[0].value)) }]} /> : null)} />
                   <Bar dataKey="total" radius={[6, 6, 0, 0]} maxBarSize={56} onClick={(d: { payload?: { moq: Moq } }) => d.payload && update((x) => ({ ...x, moq: d.payload!.moq }))}>
                     {byMoq.map((b) => (

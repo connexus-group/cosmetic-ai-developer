@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { AlertCircle, ArrowRight, Check, Pencil } from 'lucide-react';
-import { CLARIFY_QUESTIONS } from '@/data/mock';
-import type { IntakeKey } from '@/data/types';
+import { SPEC_GROUPS } from '@/data/intakeSpec';
+import type { IntakeKey, SpecAnswer, SpecFieldId } from '@/data/types';
+import { BlueprintCompact } from '@/components/intake/BlueprintSummary';
+import { IntakeGroup } from '@/components/intake/IntakeWizard';
 import { ProgressRing } from '@/components/charts';
 import { Card, KindBadge, PageIntro, Section } from '@/components/ui';
 import { conceptOf, currentStep, formulaOf, NEXT_ACTION, packageOf, progressOf, STEPS, stepStatus } from '@/lib/engine';
 import { INTAKE_LABELS } from '@/lib/intake';
-import { answerLabel } from '@/state/ProjectStore';
+import { intakeFromSpec, moqFrom, parseWon, specToAnswers } from '@/lib/spec';
 import { useProject } from '../ProjectLayout';
 
 export default function Overview() {
@@ -20,6 +22,27 @@ export default function Overview() {
   const formula = formulaOf(p);
   const pkg = packageOf(p);
   const isDemoScenario = /앰플|세럼/.test(p.intake.category.value);
+
+  const [editGroup, setEditGroup] = useState<number | null>(null);
+  const spec = p.spec;
+  // Editing a condition here keeps the rest of the project in sync and marks later analyses for review.
+  const setAnswer = (id: SpecFieldId, a: SpecAnswer | undefined) =>
+    update((x) => {
+      const nextSpec = { ...x.spec };
+      if (a) nextSpec[id] = a;
+      else delete nextSpec[id];
+      const price = id === 'targetPrice' && a && a.mode !== 'unknown' ? parseWon(a.value[0]) : null;
+      const moq = id === 'firstRun' ? moqFrom(nextSpec) : null;
+      return {
+        ...x,
+        spec: nextSpec,
+        answers: specToAnswers(nextSpec),
+        intake: intakeFromSpec(x.intake, nextSpec),
+        retailPrice: price && price > 1000 ? price : x.retailPrice,
+        moq: moq ?? x.moq,
+        changed: touch('intake'),
+      };
+    });
 
   const saveField = (k: IntakeKey, value: string) => {
     setEditing(null);
@@ -137,20 +160,21 @@ export default function Overview() {
             ))}
           </dl>
         </Section>
-        <Section title="추가 정보" subtitle="입력 단계에서 답한 내용">
-          <dl className="divide-y divide-ink-50">
-            {CLARIFY_QUESTIONS.map((q) => {
-              const a = p.answers[q.id];
-              return (
-                <div key={q.id} className="flex items-center gap-3 py-2.5">
-                  <dt className="flex-1 text-xs text-slate-500">{q.question}</dt>
-                  <dd className={clsx('text-sm font-medium', a && a.mode !== 'unknown' ? 'text-ink-900' : 'text-slate-400')}>{answerLabel(a)}</dd>
-                  {a?.mode === 'ai' && <KindBadge kind="AI_ESTIMATE" />}
-                  {a?.mode === 'user' && <KindBadge kind="USER_INPUT" />}
-                </div>
-              );
-            })}
-          </dl>
+        <Section title="Product Blueprint · 제품 개발 조건" subtitle="입력 Wizard에서 정한 조건이에요. 수정하면 이후 분석에 '재검토 필요'가 표시됩니다." className="lg:col-span-2">
+          {editGroup ? (
+            <IntakeGroup
+              key={editGroup}
+              group={SPEC_GROUPS[editGroup - 1].id}
+              spec={spec}
+              ctx={{ idea: p.idea, intake: p.intake, spec }}
+              setAnswer={setAnswer}
+              prevLabel="닫기"
+              onPrev={() => setEditGroup(null)}
+              onNext={() => setEditGroup(editGroup < SPEC_GROUPS.length ? editGroup + 1 : null)}
+            />
+          ) : (
+            <BlueprintCompact spec={spec} onEdit={setEditGroup} />
+          )}
           {!isDemoScenario && (
             <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
               데모 모드의 시장·경쟁·소비자 데이터는 "안티에이징 앰플" 시나리오 기준입니다. 다른 카테고리는 실제 데이터 연결 후 반영됩니다.

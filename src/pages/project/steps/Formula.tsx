@@ -12,6 +12,8 @@ import { effectiveConcept, krw } from '@/lib/engine';
 import { useAsync } from '@/lib/useAsync';
 import { useProject } from '../ProjectLayout';
 import { PreviewBanner } from './PreviewBanner';
+import { MatchTag, SpecNotes } from './SpecNotes';
+import { signals } from '@/lib/spec';
 
 const AXES: { key: string; label: string; get: (f: FormulaOption) => number }[] = [
   { key: 'absorption', label: 'Absorption 흡수', get: (f) => f.absorption },
@@ -23,6 +25,7 @@ const AXES: { key: string; label: string; get: (f: FormulaOption) => number }[] 
 
 export default function Formula() {
   const { project: p, update, touch } = useProject();
+  const g = signals(p);
   const navigate = useNavigate();
   const concept = effectiveConcept(p);
   const { data } = useAsync(() => dataSource.formulas(), 'formulas');
@@ -35,6 +38,7 @@ export default function Formula() {
   return (
     <div className="space-y-6">
       <PageIntro no="08" title="Formula" ko="제형 추천" question={`${concept.name}에는 어떤 제형이 가장 잘 맞을까요?`} right={<KindBadge kind="AI_ANALYSIS" />} />
+      <SpecNotes step="formula" />
       {!p.conceptId && <PreviewBanner projectId={p.id} step="concept" what="제품 컨셉" />}
       {!data ? (
         <AnalyzingState />
@@ -50,7 +54,10 @@ export default function Formula() {
                     <span className="text-[11px] font-bold tracking-[0.18em]" style={{ color: SERIES[i] }}>
                       OPTION {String.fromCharCode(65 + i)}
                     </span>
-                    {rec && <AiPill />}
+                    <span className="flex flex-wrap justify-end gap-1">
+                      {g.formulaId === f.id && <MatchTag>희망 제형 일치</MatchTag>}
+                      {rec && <AiPill />}
+                    </span>
                   </div>
                   <div className="mt-3 flex items-center gap-3">
                     <div className="grid h-11 w-11 place-items-center rounded-2xl bg-ink-50 text-ink-700">
