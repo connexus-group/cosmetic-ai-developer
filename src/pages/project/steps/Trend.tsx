@@ -10,6 +10,7 @@ import type { IngredientTrend, TrendStage } from '@/data/types';
 import { AXIS, GRID, SERIES } from '@/lib/colors';
 import { useAsync } from '@/lib/useAsync';
 import { SpecNotes } from './SpecNotes';
+import { DemoDataNotice, RealMarketData } from '@/components/market/RealMarketData';
 
 const STAGES: TrendStage[] = ['EMERGING', 'GROWING', 'MAINSTREAM', 'SATURATED'];
 const STAGE_KO: Record<TrendStage, string> = { EMERGING: '신흥', GROWING: '성장', MAINSTREAM: '주류', SATURATED: '포화' };
@@ -33,6 +34,8 @@ export default function Trend() {
     <div className="space-y-6">
       <PageIntro no="05" title="Trend Radar" ko="트렌드 분석" question="어떤 원료와 컨셉이 지금 뜨고, 어떤 것은 이미 포화일까요?" right={<DemoBadge />} />
       <SpecNotes step="trend" />
+      <RealMarketData focus="trend" />
+      <DemoDataNotice />
       {!data ? (
         <AnalyzingState />
       ) : (

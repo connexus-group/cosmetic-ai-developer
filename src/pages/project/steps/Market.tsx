@@ -7,6 +7,7 @@ import { ACCENT, AXIS, CHAMPAGNE, GRID, MUTED } from '@/lib/colors';
 import { useAsync } from '@/lib/useAsync';
 import { useProject } from '../ProjectLayout';
 import { SpecNotes } from './SpecNotes';
+import { DemoDataNotice, RealMarketData } from '@/components/market/RealMarketData';
 import { signals } from '@/lib/spec';
 
 export default function Market() {
@@ -19,6 +20,8 @@ export default function Market() {
     <div className="space-y-6">
       <PageIntro no="02" title="Market Analysis" ko="시장 분석" question="이 카테고리 시장은 얼마나 크고, 계속 성장하고 있나요?" right={<DemoBadge />} />
       <SpecNotes step="market" />
+      <RealMarketData focus="market" />
+      <DemoDataNotice />
       {!data ? (
         <AnalyzingState />
       ) : (
