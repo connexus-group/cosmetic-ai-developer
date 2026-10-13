@@ -154,3 +154,14 @@ export function defaultMarketQuery(p: Project): MarketQueryInput {
   const kw = [type, benefits[0] && type ? `${benefits[0]} ${type}` : benefits[0], ...ingredients, benefits[1]].filter((x): x is string => !!x && x.length <= 40);
   return { category, categoryCode: '50000002', keywords: [...new Set(kw)].slice(0, 5), months: 12 };
 }
+
+/** Same starting keywords, read from a Product Blueprint alone (the screen before a project exists). */
+export function queryFromBlueprint(bp: { entries: Record<string, { value: string; origin: string }> }): MarketQueryInput {
+  const val = (k: string) => clean(bp.entries[k]?.origin === 'UNDETERMINED' ? '' : bp.entries[k]?.value);
+  const category = val('category') || '스킨케어';
+  const type = val('productType').split('/')[0].trim();
+  const benefits = val('benefits').split(/[,·/]/).map((x) => x.trim()).filter(Boolean);
+  const ingredients = val('hero').split(',').map((x) => clean(x)).filter((x) => x && x.length <= 20);
+  const kw = [type, benefits[0] && type ? `${benefits[0]} ${type}` : benefits[0], ...ingredients, benefits[1]].filter((x): x is string => !!x && x.length <= 40);
+  return { category, categoryCode: '50000002', keywords: [...new Set(kw)].slice(0, 5), months: 12 };
+}

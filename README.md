@@ -36,3 +36,6 @@ External Data Source (`api/_lib/adapters/*`) → Server API (`api/market-data.ts
 - Supabase 테이블: `supabase/migrations/20261013000000_market_data.sql`을 SQL Editor에서 한 번 실행합니다.
 - 값은 모두 클릭 상대지표(조회 결과 안 최댓값 = 100)입니다. 판매량·매출·점유율로 해석하지 않습니다.
 - API 실패 시 데모 값으로 대체하지 않고 오류 또는 "데이터 부족"을 표시합니다.
+
+### 키 없이 쓰는 실제 데이터: UN Comtrade 수출 통계
+`api/trade-data.ts`가 UN Comtrade 공개 미리보기 API(무료, 키 불필요)에서 한국 화장품(HS 3304/3305/3307)의 국가별 연간 수출액을 가져옵니다. AI 기획안 아래 "실제 데이터 근거"와 Market 화면에 표시됩니다.

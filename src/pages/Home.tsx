@@ -9,6 +9,7 @@ import { Button, Card, KindBadge } from '@/components/ui';
 import { BlueprintSummary } from '@/components/intake/BlueprintSummary';
 import { GeneratingCard } from '@/components/blueprint/BlueprintReview';
 import { CompactBlueprintEditor } from '@/components/blueprint/CompactBlueprintEditor';
+import { BlueprintEvidence } from '@/components/market/RealEvidence';
 import { blueprintToIntake, blueprintToSpec, generateBlueprint, readBlueprint, refreshEntries, regenerateBlueprint, type GenProgress } from '@/lib/blueprint';
 import { IntakeGroup, WizardStepper } from '@/components/intake/IntakeWizard';
 import { analyzeIdea, EXAMPLE_IDEA, INTAKE_LABELS } from '@/lib/intake';
@@ -257,6 +258,7 @@ export default function Home() {
               </div>
             }
           />
+          <BlueprintEvidence bp={blueprint} />
         </section>
       )}
 

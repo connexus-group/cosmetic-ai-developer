@@ -114,7 +114,7 @@ export function RealMarketData({ focus }: { focus: Focus }) {
 
 const NotConnectedBadge = () => <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-slate-600 ring-1 ring-inset ring-slate-200">미연결</span>;
 
-function Spinner({ label }: { label: string }) {
+export function Spinner({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 py-6 text-sm text-slate-500">
       <Loader2 size={16} className="animate-spin" /> {label}
@@ -122,7 +122,7 @@ function Spinner({ label }: { label: string }) {
   );
 }
 
-function Notice({ tone, icon, title, children }: { tone: 'error' | 'empty' | 'warn'; icon: ReactNode; title: string; children: ReactNode }) {
+export function Notice({ tone, icon, title, children }: { tone: 'error' | 'empty' | 'warn'; icon: ReactNode; title: string; children: ReactNode }) {
   const cls = tone === 'error' ? 'border-rose-200 bg-rose-50 text-rose-900' : tone === 'warn' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-slate-200 bg-slate-50 text-slate-700';
   return (
     <div className={clsx('rounded-xl border px-4 py-3 text-sm', cls)}>
@@ -434,7 +434,7 @@ function Analysis({ data, byId, focus }: { data: MarketDataResult; byId: Map<str
   );
 }
 
-function StatementRow({ s, byId }: { s: Statement; byId: Map<string, MarketObservation> }) {
+export function StatementRow({ s, byId }: { s: Statement; byId: Map<string, MarketObservation> }) {
   const [open, setOpen] = useState(false);
   const refs = s.observationIds.map((id) => byId.get(id)).filter((o): o is MarketObservation => !!o);
   return (
