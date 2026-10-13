@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DEFAULT_TESTS } from '@/data/mock';
-import type { ClarifyAnswer, Intake, Project, Spec, StepId } from '@/data/types';
+import type { Blueprint, ClarifyAnswer, Intake, Project, Spec, StepId } from '@/data/types';
+import { readBlueprint } from '@/lib/blueprint';
 import { DEFAULT_CLAIM_COPY } from '@/lib/engine';
-import { moqFrom, signals, specFromAnswers } from '@/lib/spec';
+import { moqFrom, parseWon, signals, specFromAnswers } from '@/lib/spec';
 
 /**
  * Project store. MVP persistence is the browser's localStorage.
@@ -48,6 +49,7 @@ function normalize(raw: unknown): Project | null {
     createdAt: t,
     updatedAt: typeof p.updatedAt === 'string' ? p.updatedAt : t,
     changed: { intake: t, ...(p.changed ?? {}) },
+    blueprint: readBlueprint(p.blueprint),
     spec: p.spec && typeof p.spec === 'object' ? p.spec : specFromAnswers(p.answers && typeof p.answers === 'object' ? p.answers : {}),
     intake,
   } as Project;
@@ -90,7 +92,7 @@ const now = () => new Date().toISOString();
 interface Store {
   projects: Project[];
   get: (id: string | undefined) => Project | undefined;
-  create: (input: { name: string; idea: string; intake: Intake; answers: Project['answers']; spec?: Spec }) => Project;
+  create: (input: { name: string; idea: string; intake: Intake; answers: Project['answers']; spec?: Spec; blueprint?: Blueprint }) => Project;
   update: (id: string, fn: (p: Project) => Project) => void;
   remove: (id: string) => void;
   markVisited: (id: string, step: StepId) => void;
@@ -110,9 +112,10 @@ export function ProjectStoreProvider({ children }: { children: ReactNode }) {
     setProjects((list) => list.map((p) => (p.id === id ? { ...fn(p), updatedAt: now() } : p)));
   }, []);
 
-  const create: Store['create'] = useCallback(({ name, idea, intake, answers, spec = {} }) => {
+  const create: Store['create'] = useCallback(({ name, idea, intake, answers, spec = {}, blueprint }) => {
     const t = now();
-    const priceAnswer = answers.targetPrice?.mode === 'user' ? Number(answers.targetPrice.value.replace(/[^\d]/g, '')) : NaN;
+    const priceAnswer =
+      answers.targetPrice?.mode === 'user' ? Number(answers.targetPrice.value.replace(/[^\d]/g, '')) : blueprint && spec.targetPrice?.mode !== 'unknown' ? (parseWon(spec.targetPrice?.value[0]) ?? NaN) : NaN;
     // The optional detailed intake adds starting values for later steps; every one stays editable there.
     const g = signals({ spec });
     const project: Project = {
@@ -124,6 +127,7 @@ export function ProjectStoreProvider({ children }: { children: ReactNode }) {
       intake,
       answers,
       spec,
+      ...(blueprint ? { blueprint } : {}),
       visited: {},
       changed: { intake: t },
       moq: moqFrom(spec) ?? 5000,

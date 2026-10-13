@@ -4,7 +4,10 @@ import clsx from 'clsx';
 import { AlertCircle, ArrowRight, Check, Pencil } from 'lucide-react';
 import { CLARIFY_QUESTIONS } from '@/data/mock';
 import { SPEC_FIELDS, SPEC_GROUPS } from '@/data/intakeSpec';
-import type { IntakeKey, SpecAnswer, SpecFieldId } from '@/data/types';
+import type { Blueprint, IntakeKey, Spec, SpecAnswer, SpecFieldId } from '@/data/types';
+import { BLUEPRINT_FIELDS } from '@/data/blueprintFields';
+import { BlueprintReview } from '@/components/blueprint/BlueprintReview';
+import { blueprintToSpec, refreshEntries } from '@/lib/blueprint';
 import { BlueprintCompact } from '@/components/intake/BlueprintSummary';
 import { IntakeGroup } from '@/components/intake/IntakeWizard';
 import { ProgressRing } from '@/components/charts';
@@ -57,6 +60,44 @@ export default function Overview() {
     setEditing(null);
     if (value === p.intake[k].value) return;
     update((x) => ({ ...x, intake: { ...x.intake, [k]: { value, kind: 'USER_INPUT' } }, changed: touch('intake') }));
+  };
+
+  // The confirmed AI Product Blueprint stays editable here; changed items flow into the spec later steps read.
+  const [bpBusy, setBpBusy] = useState<Set<string>>(new Set());
+  const [bpNote, setBpNote] = useState<string | null>(null);
+  const updateBlueprint = (next: (cur: Blueprint) => Blueprint) =>
+    update((x) => {
+      if (!x.blueprint) return x;
+      const bp = next(x.blueprint);
+      const changedKeys = BLUEPRINT_FIELDS.filter((f) => x.blueprint!.entries[f.key]?.value !== bp.entries[f.key]?.value || x.blueprint!.entries[f.key]?.origin !== bp.entries[f.key]?.origin).map((f) => f.key);
+      if (!changedKeys.length) return { ...x, blueprint: bp };
+      const mapped = blueprintToSpec(bp);
+      const ids = new Set<SpecFieldId>(BLUEPRINT_FIELDS.filter((f) => f.spec && changedKeys.includes(f.key)).map((f) => f.spec!));
+      if (changedKeys.includes('lowIrritation')) ids.add('lowIrritation');
+      if (changedKeys.some((k) => k === 'hero' || k === 'actives')) ids.add('mustInclude');
+      if (changedKeys.includes('markets')) ids.add('overseasReview');
+      const nextSpec: Spec = { ...x.spec };
+      const answers = { ...x.answers };
+      for (const id of ids) {
+        if (mapped[id]) nextSpec[id] = mapped[id];
+        else delete nextSpec[id];
+        const legacy = SPEC_FIELDS.find((f) => f.id === id)?.legacy;
+        if (legacy) {
+          const m = mapped[id] ? specToAnswers({ [id]: mapped[id] })[legacy] : undefined;
+          if (m) answers[legacy] = m;
+          else delete answers[legacy];
+        }
+      }
+      const price = ids.has('targetPrice') && nextSpec.targetPrice?.mode !== 'unknown' ? parseWon(nextSpec.targetPrice?.value[0]) : null;
+      return { ...x, blueprint: bp, spec: nextSpec, answers, retailPrice: price && price > 1000 ? price : x.retailPrice, moq: ids.has('firstRun') ? (moqFrom(nextSpec) ?? x.moq) : x.moq, changed: touch('intake') };
+    });
+  const refreshBlueprint = async (keys: string[]) => {
+    if (!p.blueprint) return;
+    setBpBusy(new Set(keys));
+    const { bp, error } = await refreshEntries(p.blueprint, keys);
+    updateBlueprint((cur) => ({ ...cur, entries: { ...cur.entries, ...Object.fromEntries(keys.filter((k) => !cur.entries[k]?.locked).map((k) => [k, bp.entries[k]])) }, regulatory: bp.regulatory }));
+    setBpBusy(new Set());
+    setBpNote(error ?? null);
   };
 
   return (
@@ -190,6 +231,13 @@ export default function Overview() {
           )}
         </Section>
       </div>
+
+      {p.blueprint && (
+        <Section title="AI Product Blueprint · 확정한 제품 기획안" subtitle="'이 기획안으로 제품 개발 시작'에서 확정한 기획안이에요. 수정하면 이후 분석 단계에 반영되고 '재검토 필요'가 표시됩니다.">
+          {bpNote && <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{bpNote}</div>}
+          <BlueprintReview bp={p.blueprint} onChange={(bp) => updateBlueprint(() => bp)} actions={{ busy: bpBusy, onRefresh: refreshBlueprint }} />
+        </Section>
+      )}
 
       <Section title="Product Blueprint · 상세 기획 조건" subtitle="상세 기획 입력(6단계)에서 정한 조건이에요. 수정하면 이후 분석에 '재검토 필요'가 표시됩니다.">
         {editGroup ? (

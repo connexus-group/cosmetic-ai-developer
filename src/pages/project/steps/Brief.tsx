@@ -13,6 +13,7 @@ const SECTIONS: { id: BriefField['section']; title: string }[] = [
   { id: 'Commercial', title: '03 · Commercial Conditions' },
   { id: 'Compliance', title: '04 · Testing · Regulation · Schedule' },
   { id: 'Blueprint', title: '05 · Product Blueprint · 입력한 개발 조건' },
+  { id: 'AIBlueprint', title: '06 · AI Product Blueprint · 확정한 제품 기획안' },
 ];
 
 export default function Brief() {
@@ -99,7 +100,7 @@ export default function Brief() {
           </div>
         </div>
         <div className="divide-y divide-ink-50">
-          {SECTIONS.map((s) => (
+          {SECTIONS.filter((s) => s.id !== 'AIBlueprint' || p.blueprint).map((s) => (
             <section key={s.id} className="px-8 py-6">
               <h2 className="mb-3 text-xs font-bold tracking-[0.2em] text-champagne-700">{s.title}</h2>
               <dl className="grid gap-x-8 md:grid-cols-2">

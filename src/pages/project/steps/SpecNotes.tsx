@@ -5,14 +5,18 @@ import { fieldById } from '@/data/intakeSpec';
 import type { StepId } from '@/data/types';
 import { answerKind, stepImpacts, type Flag } from '@/lib/spec';
 import { KindBadge } from '@/components/ui';
+import { BlueprintNotes } from '@/components/blueprint/BlueprintNotes';
 import { useProject } from '../ProjectLayout';
 
 /** Which Product Blueprint conditions this step used, and what they changed here. */
 export function SpecNotes({ step, costTotal, weeks }: { step: StepId; costTotal?: number; weeks?: number }) {
   const { project: p } = useProject();
   const items = stepImpacts(p, step, { costTotal, weeks });
-  if (!items.length) return null;
+  const notes = <BlueprintNotes project={p} step={step} />;
+  if (!items.length) return notes;
   return (
+    <>
+    {notes}
     <div className="rounded-2xl border border-ink-100 bg-white px-5 py-4">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-semibold text-ink-900">
@@ -40,6 +44,7 @@ export function SpecNotes({ step, costTotal, weeks }: { step: StepId; costTotal?
       </ul>
       <p className="mt-1 text-[11px] text-slate-400">입력값만으로 안전성이나 규제 적합성을 확정하지 않습니다.</p>
     </div>
+    </>
   );
 }
 

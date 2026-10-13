@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { ArrowLeft, ArrowRight, Check, ClipboardList, Loader2, Pencil, RotateCcw, Sparkles, Wand2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, ClipboardList, FileText, Loader2, Pencil, RotateCcw, Sparkles, Wand2 } from 'lucide-react';
 import { CLARIFY_QUESTIONS } from '@/data/mock';
 import { SPEC_FIELDS, SPEC_GROUPS } from '@/data/intakeSpec';
-import type { ClarifyAnswer, ClarifyQuestion, Intake, IntakeKey, Spec, SpecAnswer, SpecFieldId } from '@/data/types';
+import type { Blueprint, ClarifyAnswer, ClarifyQuestion, Intake, IntakeKey, Spec, SpecAnswer, SpecFieldId } from '@/data/types';
 import { Button, Card, KindBadge } from '@/components/ui';
 import { BlueprintSummary } from '@/components/intake/BlueprintSummary';
+import { BlueprintReview, GeneratingCard } from '@/components/blueprint/BlueprintReview';
+import { blueprintToIntake, blueprintToSpec, generateBlueprint, readBlueprint, refreshEntries, regenerateBlueprint, type GenProgress } from '@/lib/blueprint';
 import { IntakeGroup, WizardStepper } from '@/components/intake/IntakeWizard';
 import { analyzeIdea, EXAMPLE_IDEA, INTAKE_LABELS } from '@/lib/intake';
 import { initialSpec, isSet, specFromAnswers, specToAnswers } from '@/lib/spec';
@@ -27,13 +29,17 @@ interface Draft {
   result: { intake: Intake; productName: string } | null;
   answers: Answers;
   spec: Spec;
+  /** AI Product Blueprint draft (the default screen after "분석하기") */
+  blueprint?: Blueprint;
+  /** which screen was open: the blueprint review or the classic analysis + questions */
+  view?: 'blueprint' | 'classic';
 }
 function loadDraft(): Draft {
   try {
     const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null') as Partial<Draft> | null;
     const result = d?.result && typeof d.result.productName === 'string' && d.result.intake && typeof d.result.intake === 'object' ? d.result : null;
     const obj = <T,>(v: unknown, fallback: T) => (v && typeof v === 'object' ? (v as T) : fallback);
-    return { idea: typeof d?.idea === 'string' ? d.idea : '', result, answers: obj<Answers>(d?.answers, {}), spec: obj<Spec>(d?.spec, {}) };
+    return { idea: typeof d?.idea === 'string' ? d.idea : '', result, answers: obj<Answers>(d?.answers, {}), spec: obj<Spec>(d?.spec, {}), blueprint: result ? readBlueprint(d?.blueprint) : undefined, view: d?.view === 'classic' ? 'classic' : 'blueprint' };
   } catch {
     return { idea: '', result: null, answers: {}, spec: {} };
   }
@@ -53,7 +59,12 @@ export default function Home() {
   const [params, setParams] = useSearchParams();
   const [initial] = useState(loadDraft);
   const [idea, setIdea] = useState(initial.idea);
-  const [phase, setPhase] = useState<'input' | 'analyzing' | 'result'>(initial.result ? 'result' : 'input');
+  const [phase, setPhase] = useState<'input' | 'analyzing' | 'result' | 'blueprint'>(initial.result ? (initial.blueprint && initial.view !== 'classic' ? 'blueprint' : 'result') : 'input');
+  const [blueprint, setBlueprint] = useState<Blueprint | undefined>(initial.blueprint);
+  const [progress, setProgress] = useState<GenProgress>({ stage: 'connect', ai: null });
+  const [elapsed, setElapsed] = useState(0);
+  const [busy, setBusy] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<string | null>(null);
   const [result, setResult] = useState<{ intake: Intake; productName: string } | null>(initial.result);
   const [editing, setEditing] = useState<IntakeKey | null>(null);
   const [answers, setAnswers] = useState<Answers>(initial.answers);
@@ -65,8 +76,23 @@ export default function Home() {
   const focusField = params.get('field');
 
   useEffect(() => {
-    saveDraft(idea || result ? { idea, result, answers, spec } : null);
-  }, [idea, result, answers, spec]);
+    saveDraft(idea || result ? { idea, result, answers, spec, blueprint, view: phase === 'result' ? 'classic' : 'blueprint' } : null);
+  }, [idea, result, answers, spec, blueprint, phase]);
+
+  // elapsed seconds while the blueprint is being generated (shown on the progress card)
+  useEffect(() => {
+    if (phase !== 'analyzing') return;
+    setElapsed(0);
+    const t = window.setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => {
+      window.clearInterval(t);
+    };
+  }, [phase]);
+
+  const flash = (m: string) => {
+    setToast(m);
+    window.setTimeout(() => setToast(null), 4000);
+  };
 
   useEffect(() => {
     if (step === null) return;
@@ -109,18 +135,46 @@ export default function Home() {
   const ctx = useMemo(() => ({ idea, intake: result?.intake ?? analyzeIdea(EXAMPLE_IDEA).intake, spec }), [idea, result, spec]);
   const detailCount = SPEC_FIELDS.filter((f) => !f.legacy && isSet(spec[f.id]) && spec[f.id]?.mode !== 'idea').length;
 
-  const analyze = (text = idea) => {
+  // "분석하기": the AI (or the labeled Demo Mode) writes the whole Product Blueprint first; the user then reviews it.
+  const analyze = async (text = idea) => {
     const t = text.trim() || EXAMPLE_IDEA;
     setIdea(t);
     setPhase('analyzing');
-    // Demo Mode: rule-based analysis with a short delay to mimic the AI step.
-    window.setTimeout(() => {
-      const r = analyzeIdea(t);
-      setResult(r);
-      setAnswers({});
-      setSpec(initialSpec(r.intake));
-      setPhase('result');
-    }, 1100);
+    const r = analyzeIdea(t);
+    setResult(r);
+    setAnswers({});
+    setSpec(initialSpec(r.intake));
+    const bp = await generateBlueprint(t, setProgress);
+    setBlueprint(bp);
+    setPhase('blueprint');
+    window.scrollTo(0, 0);
+  };
+
+  const refresh = async (keys: string[]) => {
+    if (!blueprint) return;
+    setBusy(new Set(keys));
+    const { bp, error } = await refreshEntries(blueprint, keys);
+    // keep edits made while the suggestion was loading: only the refreshed keys are taken from the answer
+    setBlueprint((cur) => (cur ? { ...cur, entries: { ...cur.entries, ...Object.fromEntries(keys.filter((k) => !cur.entries[k]?.locked).map((k) => [k, bp.entries[k]])) }, regulatory: bp.regulatory } : bp));
+    setBusy(new Set());
+    if (error) flash(error);
+  };
+
+  const regenerate = async (keepLocked: boolean) => {
+    if (!blueprint) return;
+    setPhase('analyzing');
+    const bp = await regenerateBlueprint(blueprint, keepLocked, setProgress);
+    setBlueprint(bp);
+    setPhase('blueprint');
+  };
+
+  const startFromBlueprint = () => {
+    if (!blueprint || !result) return;
+    const confirmed = { ...blueprint, confirmedAt: new Date().toISOString() };
+    const s = blueprintToSpec(confirmed);
+    const p = create({ name: confirmed.productName, idea, intake: blueprintToIntake(confirmed, result.intake), answers: specToAnswers(s), spec: s, blueprint: confirmed });
+    saveDraft(null);
+    navigate(`/projects/${p.id}/overview`);
   };
 
   const setField = (key: IntakeKey, value: string) => setResult((r) => (r ? { ...r, intake: { ...r.intake, [key]: { value, kind: 'USER_INPUT' } } } : r));
@@ -181,21 +235,45 @@ export default function Home() {
 
       {phase === 'analyzing' && (
         <section className="mx-auto max-w-4xl px-4 pb-20">
-          <Card className="p-6">
-            <div className="flex items-center gap-2 text-sm font-medium text-ink-700">
-              <Loader2 size={16} className="animate-spin" /> AI가 요구사항을 분석하고 있어요
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-20 animate-pulse rounded-xl bg-ink-50" style={{ animationDelay: `${i * 80}ms` }} />
-              ))}
-            </div>
-          </Card>
+          <GeneratingCard stage={progress.stage} ai={progress.ai} notice={progress.notice} elapsed={elapsed} />
+        </section>
+      )}
+
+      {phase === 'blueprint' && blueprint && (
+        <section className="mx-auto max-w-5xl px-4 pb-24">
+          <BlueprintReview
+            bp={blueprint}
+            onChange={setBlueprint}
+            actions={{ busy, onRefresh: refresh, onRegenerate: regenerate }}
+            footer={
+              <div className="flex flex-col-reverse items-stretch justify-between gap-3 pt-2 sm:flex-row sm:items-center">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button variant="ghost" onClick={() => setPhase('input')}>
+                    <RotateCcw size={14} /> 아이디어 다시 입력
+                  </Button>
+                  <Button variant="ghost" onClick={() => setPhase('result')}>
+                    <FileText size={14} /> 기존 분석 결과·질문 화면 보기
+                  </Button>
+                </div>
+                <Button variant="primary" className="px-6 py-3 text-[15px]" onClick={startFromBlueprint} disabled={busy.size > 0}>
+                  이 기획안으로 제품 개발 시작 <ArrowRight size={16} />
+                </Button>
+              </div>
+            }
+          />
         </section>
       )}
 
       {phase === 'result' && result && (
         <section className="mx-auto max-w-5xl space-y-6 px-4 pb-24">
+          {blueprint && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-champagne-300 bg-white px-4 py-3 text-[13px] text-ink-800">
+              <span>기존 분석 결과와 질문 화면이에요. AI 제품 기획 초안은 그대로 저장되어 있어요.</span>
+              <Button className="px-3 py-1.5 text-xs" onClick={() => setPhase('blueprint')}>
+                <ArrowLeft size={13} /> AI 제품 기획 초안으로 돌아가기
+              </Button>
+            </div>
+          )}
           <Card className="overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-50 bg-ink-50/50 px-6 py-4">
               <div>
@@ -336,6 +414,7 @@ export default function Home() {
           </Card>
         </section>
       )}
+      {toast && <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-ink-900 px-4 py-2.5 text-sm text-white shadow-lg">{toast}</div>}
     </main>
   );
 }

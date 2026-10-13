@@ -1,5 +1,6 @@
 import { COMPETITORS, TESTS } from '@/data/mock';
 import { fieldsOf, marketLabel, SPEC_GROUPS } from '@/data/intakeSpec';
+import { BLUEPRINT_FIELDS } from '@/data/blueprintFields';
 import type { DataKind, Project } from '@/data/types';
 import { displayValue, first, isSet, signals, vals } from './spec';
 import { conceptOf, costSummary, effectiveConcept, formulaOf, krw, packageOf, regulationItems, testsOf, timelineOf } from './engine';
@@ -11,7 +12,7 @@ export interface BriefField {
   value: string;
   /** where the auto value came from */
   basis: 'intake' | 'selection' | 'ai' | 'calc';
-  section: 'Overview' | 'Product' | 'Commercial' | 'Compliance' | 'Blueprint';
+  section: 'Overview' | 'Product' | 'Commercial' | 'Compliance' | 'Blueprint' | 'AIBlueprint';
   /** source badge when it differs from what `basis` implies */
   kind?: DataKind;
 }
@@ -56,6 +57,34 @@ export function buildBrief(p: Project): BriefField[] {
   });
   const undecided = SPEC_GROUPS.flatMap((grp) => fieldsOf(grp.id)).filter((f) => !isSet(spec[f.id]));
   if (undecided.length) blueprint.push({ key: 'blueprint-open', label: 'Undecided', ko: '미정 항목', value: undecided.map((f) => f.label).join(', '), basis: 'intake', section: 'Blueprint' });
+  // The confirmed AI Product Blueprint, item by item, with where each value came from.
+  const bp = p.blueprint;
+  const aiBlueprint: BriefField[] = bp
+    ? [
+        ...BLUEPRINT_FIELDS.map((f) => {
+          const e = bp.entries[f.key];
+          const undecided = !e || e.origin === 'UNDETERMINED';
+          return {
+            key: `bp-${f.key}`,
+            label: f.key,
+            ko: f.label,
+            value: `${undecided ? '미정' : e.value}${e?.needsVerification && !undecided ? ' (확인 필요)' : ''}`,
+            basis: 'ai' as const,
+            section: 'AIBlueprint' as const,
+            kind: (e?.origin === 'USER_PROVIDED' ? 'USER_INPUT' : undecided ? 'AI_ESTIMATE' : bp.mode === 'ai' ? 'AI_ANALYSIS' : 'DEMO_RECOMMEND') as DataKind,
+          };
+        }),
+        {
+          key: 'bp-regulatory',
+          label: 'Country Regulatory Check',
+          ko: '국가별 규제 확인',
+          value: bp.regulatory.length ? bp.regulatory.map((r) => `${r.country}: ${r.status === 'VERIFIED' && r.source ? `확인됨 (${r.source.title}, ${r.checkedAt})` : '규제 확인 필요'}`).join(' / ') : '판매 국가 미정',
+          basis: 'ai' as const,
+          section: 'AIBlueprint' as const,
+          kind: 'AI_ESTIMATE' as DataKind,
+        },
+      ]
+    : [];
   const auto: BriefField[] = [
     { key: 'name', label: 'Project Name', ko: '프로젝트명', value: p.name, basis: 'selection', section: 'Overview' },
     { key: 'category', label: 'Product Category', ko: '카테고리', value: p.intake.category.value, basis: 'intake', section: 'Overview' },
@@ -83,6 +112,7 @@ export function buildBrief(p: Project): BriefField[] {
     { key: 'additional', label: 'Additional Requirements', ko: '추가 요청사항', value: '무향 또는 저향 · 끈적임 없는 마무리감 · 저자극 테스트 진행 희망', basis: 'ai', section: 'Compliance' },
     ...(extras.length ? [{ key: 'specRequests', label: 'Blueprint Requests', ko: '상세 기획 요청사항', value: extras.join(' · '), basis: 'intake' as const, section: 'Compliance' as const }] : []),
     ...blueprint,
+    ...aiBlueprint,
   ];
   return auto.map((x) => (p.brief[x.key] !== undefined ? { ...x, value: p.brief[x.key] } : x));
 }
