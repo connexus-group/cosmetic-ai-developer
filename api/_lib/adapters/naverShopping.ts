@@ -114,7 +114,7 @@ export const naverShoppingAdapter: DataAdapter = {
       env: ['NAVER_CLIENT_ID', 'NAVER_CLIENT_SECRET', 'NAVER_DATALAB_GATEWAY (선택)'],
       costNote:
         gateway === 'apihub'
-          ? 'NAVER API HUB: 현재 한시 무료, 쇼핑인사이트 월 50,000회 한도. 유료 전환 시 사전 공지.'
+          ? 'NAVER API HUB: 현재 한시 무료이나 유료 전환 예정(사전 공지). 무료로만 쓰려면 기본값 openapi 사용.'
           : '네이버 개발자센터 오픈API: 무료, 데이터랩 하루 1,000회 한도.',
     };
   },

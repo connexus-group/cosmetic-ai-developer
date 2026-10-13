@@ -100,6 +100,8 @@ export function computeFindings(obs: Observation[], keywords: string[], category
 // ── AI narrative ────────────────────────────────────────────────────────────
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5-5';
+/** MARKET_AI_ANALYSIS=on turns on AI sentences (billed per call). Default off, so the data pipeline costs nothing. */
+export const aiAnalysisEnabled = () => process.env.MARKET_AI_ANALYSIS === 'on' && !!process.env.ANTHROPIC_API_KEY;
 
 const SYSTEM = `당신은 화장품 상품기획 분석가입니다. 주어진 "수집 데이터"와 "계산된 사실"만 근거로 해석 문장을 씁니다.
 
@@ -156,6 +158,8 @@ export interface Narrative {
 }
 
 export async function aiNarrative(obs: Observation[], findings: Findings, context: { category: string; keywords: string[]; idea?: string }): Promise<Narrative> {
+  // Paid per use: off unless explicitly enabled, even when ANTHROPIC_API_KEY is set for the blueprint.
+  if (!aiAnalysisEnabled()) return { status: 'NO_API_KEY', model: null, statements: [], dropped: 0, message: 'AI 해석은 꺼져 있습니다 (사용량 과금 기능이라 기본값 꺼짐). 아래 계산 결과는 수집 데이터만으로 계산한 값입니다.' };
   if (!process.env.ANTHROPIC_API_KEY) return { status: 'NO_API_KEY', model: null, statements: [], dropped: 0, message: 'ANTHROPIC_API_KEY가 없어 AI 해석 문장은 만들지 않았습니다. 아래 계산 결과는 수집 데이터만으로 계산한 값입니다.' };
   if (!findings.statements.length) return { status: 'NO_DATA', model: null, statements: [], dropped: 0, message: '데이터 부족으로 AI 해석을 만들지 않았습니다.' };
 

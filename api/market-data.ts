@@ -10,14 +10,14 @@
  *   NAVER_DATALAB_GATEWAY                  optional: openapi (default) | apihub
  *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY optional: storage + cache across requests
  *   MARKET_DATA_CACHE_HOURS                optional, default 24
- *   ANTHROPIC_API_KEY                      optional: AI interpretation sentences
+ *   MARKET_AI_ANALYSIS=on + ANTHROPIC_API_KEY optional: AI interpretation sentences (billed per call; off by default)
  *
  * On failure this route answers with an error. It never substitutes demo or invented values.
  */
 import { ADAPTERS, sourceStatus } from './_lib/adapters/index.js';
 import { NAVER_COSMETICS_CATEGORY, NAVER_DOCS_URL, NAVER_EARLIEST, NAVER_METRICS, NAVER_SOURCE_NAME, NAVER_SOURCE_URL, NAVER_UNIT } from './_lib/adapters/naverShopping.js';
 import { AdapterError, type MarketQuery } from './_lib/adapters/types.js';
-import { aiNarrative, computeFindings } from './_lib/analysis.js';
+import { aiAnalysisEnabled, aiNarrative, computeFindings } from './_lib/analysis.js';
 import { hash, validateAll, type Observation } from './_lib/observation.js';
 import * as db from './_lib/supabase.js';
 
@@ -79,7 +79,7 @@ export async function GET() {
   return json(200, {
     sources: sourceStatus(),
     storage: { supabase: db.supabaseConfigured() },
-    ai: { configured: !!process.env.ANTHROPIC_API_KEY },
+    ai: { configured: aiAnalysisEnabled() },
     source: sourceMeta(),
   });
 }

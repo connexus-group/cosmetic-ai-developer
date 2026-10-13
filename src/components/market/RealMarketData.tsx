@@ -148,7 +148,7 @@ function SetupGuide() {
         <li>
           Vercel → Settings → Environment Variables에 <code>NAVER_CLIENT_ID</code>, <code>NAVER_CLIENT_SECRET</code>을 넣고 다시 배포합니다. (로컬은 <code>.env.local</code>)
         </li>
-        <li>NAVER Cloud의 NAVER API HUB 키를 쓰면 <code>NAVER_DATALAB_GATEWAY=apihub</code>도 함께 넣습니다.</li>
+        <li>네이버 개발자센터 키는 무료입니다(하루 1,000회 한도, 넘으면 과금 없이 호출만 막힘). NAVER API HUB 키는 유료 전환 예정이라 권장하지 않습니다.</li>
       </ol>
     </Notice>
   );
@@ -540,9 +540,9 @@ function SourceList({ status }: { status: MarketDataStatus }) {
           </span>
         </li>
         <li className="flex items-start gap-2">
-          <span className={clsx('mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset', status.ai.configured ? cls.connected : cls.not_configured)}>{status.ai.configured ? '연결됨' : '키 미설정'}</span>
+          <span className={clsx('mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset', status.ai.configured ? cls.connected : cls.not_configured)}>{status.ai.configured ? '켜짐' : '꺼짐'}</span>
           <span>
-            <span className="font-medium text-ink-900">AI 해석 (Claude)</span> <span className="text-slate-500">· 수집 데이터만 근거로 해석 문장 작성</span>
+            <span className="font-medium text-ink-900">AI 해석 (Claude)</span> <span className="text-slate-500">· 사용량 과금 기능이라 기본 꺼짐 · 수집 데이터만 근거로 해석</span>
           </span>
         </li>
       </ul>
