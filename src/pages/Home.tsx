@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import clsx from 'clsx';
-import { ArrowLeft, ArrowRight, Check, ClipboardList, FileText, Loader2, Pencil, RotateCcw, Sparkles, Wand2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, ClipboardList, Loader2, Pencil, RotateCcw, Sparkles, Wand2 } from 'lucide-react';
 import { CLARIFY_QUESTIONS } from '@/data/mock';
 import { SPEC_FIELDS, SPEC_GROUPS } from '@/data/intakeSpec';
 import type { Blueprint, ClarifyAnswer, ClarifyQuestion, Intake, IntakeKey, Spec, SpecAnswer, SpecFieldId } from '@/data/types';
 import { Button, Card, KindBadge } from '@/components/ui';
 import { BlueprintSummary } from '@/components/intake/BlueprintSummary';
-import { BlueprintReview, GeneratingCard } from '@/components/blueprint/BlueprintReview';
+import { GeneratingCard } from '@/components/blueprint/BlueprintReview';
+import { CompactBlueprintEditor } from '@/components/blueprint/CompactBlueprintEditor';
 import { blueprintToIntake, blueprintToSpec, generateBlueprint, readBlueprint, refreshEntries, regenerateBlueprint, type GenProgress } from '@/lib/blueprint';
 import { IntakeGroup, WizardStepper } from '@/components/intake/IntakeWizard';
 import { analyzeIdea, EXAMPLE_IDEA, INTAKE_LABELS } from '@/lib/intake';
@@ -153,9 +154,9 @@ export default function Home() {
   const refresh = async (keys: string[]) => {
     if (!blueprint) return;
     setBusy(new Set(keys));
-    const { bp, error } = await refreshEntries(blueprint, keys);
+    const { bp, error, keys: changed } = await refreshEntries(blueprint, keys);
     // keep edits made while the suggestion was loading: only the refreshed keys are taken from the answer
-    setBlueprint((cur) => (cur ? { ...cur, entries: { ...cur.entries, ...Object.fromEntries(keys.filter((k) => !cur.entries[k]?.locked).map((k) => [k, bp.entries[k]])) }, regulatory: bp.regulatory } : bp));
+    setBlueprint((cur) => (cur ? { ...cur, entries: { ...cur.entries, ...Object.fromEntries(changed.filter((k) => !cur.entries[k]?.locked).map((k) => [k, bp.entries[k]])) }, regulatory: bp.regulatory } : bp));
     setBusy(new Set());
     if (error) flash(error);
   };
@@ -241,20 +242,15 @@ export default function Home() {
 
       {phase === 'blueprint' && blueprint && (
         <section className="mx-auto max-w-5xl px-4 pb-24">
-          <BlueprintReview
+          <CompactBlueprintEditor
             bp={blueprint}
             onChange={setBlueprint}
             actions={{ busy, onRefresh: refresh, onRegenerate: regenerate }}
             footer={
               <div className="flex flex-col-reverse items-stretch justify-between gap-3 pt-2 sm:flex-row sm:items-center">
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button variant="ghost" onClick={() => setPhase('input')}>
-                    <RotateCcw size={14} /> 아이디어 다시 입력
-                  </Button>
-                  <Button variant="ghost" onClick={() => setPhase('result')}>
-                    <FileText size={14} /> 기존 분석 결과·질문 화면 보기
-                  </Button>
-                </div>
+                <Button variant="ghost" onClick={() => setPhase('input')}>
+                  <RotateCcw size={14} /> 아이디어 다시 입력
+                </Button>
                 <Button variant="primary" className="px-6 py-3 text-[15px]" onClick={startFromBlueprint} disabled={busy.size > 0}>
                   이 기획안으로 제품 개발 시작 <ArrowRight size={16} />
                 </Button>

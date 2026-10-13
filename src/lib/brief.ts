@@ -1,6 +1,6 @@
 import { COMPETITORS, TESTS } from '@/data/mock';
 import { fieldsOf, marketLabel, SPEC_GROUPS } from '@/data/intakeSpec';
-import { BLUEPRINT_FIELDS } from '@/data/blueprintFields';
+import { CORE_KEYS, coreLabel } from '@/data/blueprintFields';
 import type { DataKind, Project } from '@/data/types';
 import { displayValue, first, isSet, signals, vals } from './spec';
 import { conceptOf, costSummary, effectiveConcept, formulaOf, krw, packageOf, regulationItems, testsOf, timelineOf } from './engine';
@@ -57,11 +57,13 @@ export function buildBrief(p: Project): BriefField[] {
   });
   const undecided = SPEC_GROUPS.flatMap((grp) => fieldsOf(grp.id)).filter((f) => !isSet(spec[f.id]));
   if (undecided.length) blueprint.push({ key: 'blueprint-open', label: 'Undecided', ko: '미정 항목', value: undecided.map((f) => f.label).join(', '), basis: 'intake', section: 'Blueprint' });
-  // The confirmed AI Product Blueprint, item by item, with where each value came from.
+  // The confirmed AI Product Blueprint (core items), with where each value came from.
   const bp = p.blueprint;
   const aiBlueprint: BriefField[] = bp
     ? [
-        ...BLUEPRINT_FIELDS.map((f) => {
+        // the 12 core items; the detailed items are in the sections above through the spec
+        ...CORE_KEYS.map((key) => {
+          const f = { key, label: coreLabel(key) };
           const e = bp.entries[f.key];
           const undecided = !e || e.origin === 'UNDETERMINED';
           return {

@@ -1,4 +1,4 @@
-import { BLUEPRINT_DEPENDENTS, BLUEPRINT_FIELDS, blueprintField, MARKET_NAMES, type BlueprintFieldDef } from '@/data/blueprintFields';
+import { BLUEPRINT_DEPENDENTS, BLUEPRINT_FIELDS, blueprintField, CORE_DEPENDENTS, CORE_SHOWN, MARKET_NAMES, type BlueprintFieldDef } from '@/data/blueprintFields';
 import { fieldById, MARKETS, marketLabel } from '@/data/intakeSpec';
 import type { Blueprint, BlueprintEntry, Intake, RegulatoryCheck, Spec, SpecAnswer } from '@/data/types';
 import { analyzeIdea } from './intake';
@@ -63,7 +63,7 @@ interface AiAnswer {
   regulatory: RegulatoryCheck[];
 }
 
-const fieldPayload = (f: BlueprintFieldDef) => ({ key: f.key, label: f.label, guide: f.guide, options: f.options, multi: f.multi, verify: f.verify });
+const fieldPayload = (f: BlueprintFieldDef) => ({ key: f.key, label: f.label, guide: f.guide, options: f.options, multi: f.multi, verify: f.verify, core: !!f.parts });
 
 async function callAi(idea: string, opts: { keys?: string[]; context?: Blueprint; avoid?: Record<string, string[]> } = {}): Promise<AiAnswer> {
   const ctrl = new AbortController();
@@ -237,7 +237,7 @@ function demoCandidates(key: string, idea: string, intake: Intake, spec: Spec, c
         return [{ value: `${val('hero') || '대표 원료'}의 ${val('textureType') || '제형'} 내 안정성, 권장 함량, pH 범위를 제조사와 확인`, reason: '원료와 제형 조합은 실제 처방 테스트가 필요합니다.' }];
       case 'material':
         return [
-          { value: val('container') === '에어리스' ? 'PP 에어리스 용기' : val('container') === '스포이드' ? '유리 병 + 스포이드' : 'PETG 또는 PP', reason: '권장 패키지와 맞는 일반적인 재질 후보입니다.' },
+          { value: val('container') === '에어리스' ? 'PP' : val('container') === '스포이드' ? '유리' : 'PETG 또는 PP', reason: '권장 패키지와 맞는 일반적인 재질 후보입니다.' },
           { value: '재활용 PP (친환경 옵션)', reason: '친환경 재질 후보입니다.' },
         ];
       case 'positioning':
@@ -288,16 +288,21 @@ export function demoBlueprint(idea: string, notice?: string): Blueprint {
   const spec = ruleSpec(idea, intake);
   const entries: Record<string, BlueprintEntry> = {};
   for (const f of BLUEPRINT_FIELDS) {
+    if (f.parts) continue;
     const e = demoEntry(f.key, demoCandidates(f.key, idea, intake, spec, entries));
     entries[f.key] = e;
     // later demo rules read the values decided so far
     if (f.spec && e.origin !== 'UNDETERMINED') spec[f.spec] = spec[f.spec]?.mode === 'idea' ? spec[f.spec] : { mode: 'ai', value: f.spec === 'markets' ? marketCodes(e.value) : f.multi ? splitList(e.value) : [e.value] };
   }
   // second pass: sentence-type items (concept, USP, ...) read the finished target / formula values
-  for (const f of BLUEPRINT_FIELDS) if ((!f.spec || f.key === 'keywords') && entries[f.key].origin !== 'USER_PROVIDED') entries[f.key] = demoEntry(f.key, demoCandidates(f.key, idea, intake, spec, entries));
+  for (const f of BLUEPRINT_FIELDS) if (!f.parts && (!f.spec || f.key === 'keywords') && entries[f.key].origin !== 'USER_PROVIDED') entries[f.key] = demoEntry(f.key, demoCandidates(f.key, idea, intake, spec, entries));
   // conditions the user stated are never replaced by a suggestion
   for (const e of Object.values(entries)) if (e.origin === 'USER_PROVIDED') e.locked = true;
-  return { idea, mode: 'demo', generatedAt: new Date().toISOString(), productName, entries, regulatory: demoRegulatory(marketCodes(entries.markets.value)), notice };
+  // the first-screen summary items are built from the detailed items
+  syncSummaries(entries, [], true);
+  // insertion order = field order
+  const ordered = Object.fromEntries(BLUEPRINT_FIELDS.map((f) => [f.key, entries[f.key]]));
+  return { idea, mode: 'demo', generatedAt: new Date().toISOString(), productName, entries: ordered, regulatory: demoRegulatory(marketCodes(entries.markets.value)), notice };
 }
 
 function demoRefresh(bp: Blueprint, keys: string[], avoid: Record<string, string[]>): BlueprintEntry[] {
@@ -309,6 +314,151 @@ function demoRefresh(bp: Blueprint, keys: string[], avoid: Record<string, string
     const cands = demoCandidates(k, bp.idea, intake, spec, bp.entries).map((c) => ({ ...c, origin: undefined }));
     return demoEntry(k, cands, avoid[k]);
   });
+}
+
+// ── summary items (first screen) ────────────────────────────────────────────
+
+const SUMMARY_KEYS = BLUEPRINT_FIELDS.filter((f) => f.parts).map((f) => f.key);
+export const isSummary = (key: string) => SUMMARY_KEYS.includes(key);
+const summariesOf = (part: string) => SUMMARY_KEYS.filter((k) => blueprintField(k)!.parts!.includes(part));
+
+const STICKY_TEXT: Record<string, string> = { '전혀 허용 안 함': '끈적임 없음', '거의 없어야 함': '끈적임 거의 없음', '약간 허용': '약간의 끈적임 허용', '어느 정도 허용': '끈적임 어느 정도 허용', 상관없음: '끈적임 무관' };
+const ABSORB_TEXT: Record<string, string> = { 빠름: '빠른 흡수', 보통: '보통 흡수', 느림: '천천히 흡수' };
+
+/** One line built from the detailed items (used in Demo Mode, when the AI left it out, and after a detailed item changes). */
+function summaryText(key: string, entries: Record<string, BlueprintEntry>): string {
+  const v = (k: string) => (isUndecided(entries[k]) ? '' : entries[k].value.trim());
+  const join = (xs: string[], sep = ' · ') => xs.filter(Boolean).join(sep);
+  switch (key) {
+    case 'productKind':
+      return join([v('category'), v('productType')]);
+    case 'target':
+      return join([join([splitList(v('ages')).join('·'), v('gender') === '성별 무관' ? '' : v('gender')], ' '), splitList(v('skinTypes')).join('·'), splitList(v('concerns')).join('·')]);
+    case 'texture':
+      return join([v('textureType') && `${v('textureType')} 제형`, ABSORB_TEXT[v('absorption')] ?? v('absorption'), STICKY_TEXT[v('stickiness')] ?? v('stickiness'), v('finish') && `${splitList(v('finish')).join('·')} 마무리`]);
+    case 'keyIngredients':
+      return join([v('hero') && `Hero: ${v('hero')}`, v('actives') && `Active: ${v('actives')}`], ' / ');
+    case 'pack':
+      return join([v('size'), v('container'), v('material')]);
+    case 'pitch': {
+      const kw = splitList(v('keywords')).slice(0, 4).map((k) => `#${k.replace(/\s+/g, '')}`).join(' ');
+      return join([v('usp') && `${v('usp').replace(/[.。]$/, '')}.`, v('differentiation') && `${v('differentiation').replace(/[.。]$/, '')}.`, kw], ' ');
+    }
+    default:
+      return '';
+  }
+}
+
+function composeSummary(key: string, entries: Record<string, BlueprintEntry>): BlueprintEntry {
+  const f = blueprintField(key)!;
+  const shown = CORE_SHOWN[key] ?? f.parts!;
+  const decided = shown.filter((k) => !isUndecided(entries[k]));
+  const value = summaryText(key, entries);
+  if (!decided.length || !value) return { fieldKey: key, value: UNDECIDED, origin: 'UNDETERMINED', reason: '관련 상세 항목이 모두 미정이라 정하지 않았습니다.', confidence: 0, needsVerification: true, sourceReferences: [] };
+  const user = decided.filter((k) => entries[k].origin === 'USER_PROVIDED');
+  const allUser = user.length === decided.length && decided.length === shown.length;
+  const label = (k: string) => blueprintField(k)!.label;
+  return {
+    fieldKey: key,
+    value,
+    origin: allUser ? 'USER_PROVIDED' : 'AI_SUGGESTED',
+    reason: allUser ? '아이디어 문장에 직접 적은 조건입니다.' : `${decided.map(label).join('·')} 항목을 한 줄로 묶었습니다.${user.length ? ` 그중 ${user.map(label).join('·')}은(는) 사용자 입력입니다.` : ''}`,
+    confidence: Math.min(...decided.map((k) => entries[k].confidence)),
+    needsVerification: !!f.verify || decided.some((k) => entries[k].needsVerification),
+    sourceReferences: user.length ? ['사용자 입력'] : [],
+    locked: allUser || undefined,
+  };
+}
+
+const optionIn = (text: string, key: string) => (blueprintField(key)?.options ?? []).filter((o) => text.includes(o) || text.includes(o.split(/[·/ ]/)[0]));
+
+/** A summary line the user wrote → the detailed items it states (only what can be read reliably). */
+export function parseSummary(key: string, text: string): Record<string, string> {
+  const t = text.trim();
+  const out: Record<string, string> = {};
+  const set = (k: string, xs: string[]) => {
+    const u = [...new Set(xs)];
+    if (u.length) out[k] = u.join(', ');
+  };
+  switch (key) {
+    case 'productKind':
+      set('category', optionIn(t, 'category').slice(0, 1));
+      set('productType', optionIn(t, 'productType').slice(0, 1));
+      if (!out.productType) {
+        const rest = t.split(/\s*[·>,/]\s*/).filter((x) => x && !(blueprintField('category')!.options ?? []).includes(x));
+        if (rest.length) out.productType = rest[rest.length - 1];
+      }
+      break;
+    case 'target': {
+      const ages = [...t.matchAll(/(\d0)\s*대(\s*이상)?/g)].map((m) => (m[2] ? `${m[1]}대 이상` : `${m[1]}대`));
+      set('ages', ages);
+      set('gender', /남녀|성별\s*무관|젠더리스/.test(t) ? ['성별 무관'] : /여성/.test(t) ? ['여성'] : /남성/.test(t) ? ['남성'] : []);
+      set('skinTypes', [/민감/.test(t) && '민감성', /건성|건조한 피부/.test(t) && '건성', /지성/.test(t) && '지성', /복합/.test(t) && '복합성', /모든 피부|전\s*피부/.test(t) && '모든 피부'].filter(Boolean) as string[]);
+      const concerns = (blueprintField('concerns')!.options ?? []).filter((o) => o.split(/[·\s]/).some((w) => w.length > 1 && w !== '민감' && t.includes(w)));
+      set('concerns', concerns);
+      break;
+    }
+    case 'texture': {
+      set('textureType', optionIn(t, 'textureType').slice(0, 1));
+      const ab = /(빠른|빠르게)\s*흡수|흡수\s*(빠름|빠른)/.test(t) ? '빠름' : /(천천히|느린|느리게)\s*흡수|흡수\s*느림/.test(t) ? '느림' : /흡수\s*보통|보통\s*흡수/.test(t) ? '보통' : '';
+      if (ab) out.absorption = ab;
+      const st = /끈적임\s*(없음|없이|없는|없게|0)|논\s*스티키|안\s*끈적/.test(t) ? '전혀 허용 안 함' : /끈적임\s*(거의|적은|적게|최소)/.test(t) ? '거의 없어야 함' : /약간(의)?\s*끈적/.test(t) ? '약간 허용' : '';
+      if (st) out.stickiness = st;
+      set('finish', optionIn(t, 'finish'));
+      break;
+    }
+    case 'keyIngredients': {
+      const hero = t.match(/hero\s*[:：]\s*([^/|]+)/i)?.[1];
+      const act = t.match(/active\s*[:：]\s*([^/|]+)/i)?.[1];
+      if (hero || act) {
+        if (hero) out.hero = splitList(hero).join(', ');
+        if (act) out.actives = splitList(act).join(', ');
+      } else {
+        const xs = splitList(t.replace(/\s*\+\s*/g, ', '));
+        if (xs.length) out.hero = xs[0];
+        if (xs.length > 1) out.actives = xs.slice(1).join(', ');
+      }
+      break;
+    }
+    case 'pack': {
+      const ml = t.match(/(\d{1,4})\s*(ml|mL|ML|g)/);
+      if (ml) out.size = `${ml[1]}${ml[2].toLowerCase()}`;
+      set('container', optionIn(t, 'container').slice(0, 1));
+      const mat = t.match(/(재활용\s*)?(PETG|PET|PP|PE|PCR|유리|알루미늄|아크릴|종이)[^·,/]*/i)?.[0];
+      if (mat) out.material = mat.trim();
+      break;
+    }
+    case 'pitch': {
+      out.differentiation = t.replace(/#\S+/g, '').trim() || t;
+      const tags = [...t.matchAll(/#(\S+)/g)].map((m) => m[1]);
+      if (tags.length) out.keywords = tags.join(', ');
+      break;
+    }
+  }
+  return out;
+}
+
+const userEntry = (key: string, v: string, prev: BlueprintEntry | undefined, reason = '사용자가 직접 수정한 값입니다.'): BlueprintEntry => ({
+  fieldKey: key,
+  value: v || UNDECIDED,
+  origin: v ? 'USER_PROVIDED' : 'UNDETERMINED',
+  reason: v ? reason : '사용자가 값을 비웠습니다.',
+  confidence: v ? 1 : 0,
+  needsVerification: !!blueprintField(key)?.verify || !v,
+  sourceReferences: v ? ['사용자 입력'] : [],
+  locked: !!v,
+  previous: prev ? [...new Set([...(prev.previous ?? []), prev.value])].slice(-6) : [],
+});
+
+/** Summary items follow their detailed items unless the user wrote or locked the summary. */
+function syncSummaries(entries: Record<string, BlueprintEntry>, changedParts: string[], force = false) {
+  for (const k of SUMMARY_KEYS) {
+    const cur = entries[k];
+    if (cur?.locked && !force) continue;
+    if (!force && !changedParts.some((p) => blueprintField(k)!.parts!.includes(p)) && cur && !isUndecided(cur)) continue;
+    const next = composeSummary(k, entries);
+    entries[k] = { ...next, previous: cur && cur.value !== next.value ? [...new Set([...(cur.previous ?? []), cur.value])].slice(-6) : cur?.previous };
+  }
 }
 
 // ── generation entry points ─────────────────────────────────────────────────
@@ -325,7 +475,8 @@ const normalizeAi = (a: AiAnswer, idea: string, fallbackName: string): Blueprint
   const entries: Record<string, BlueprintEntry> = {};
   for (const e of a.entries) entries[e.fieldKey] = e;
   for (const f of BLUEPRINT_FIELDS)
-    if (!entries[f.key]) entries[f.key] = { fieldKey: f.key, value: UNDECIDED, origin: 'UNDETERMINED', reason: 'AI 응답에 이 항목이 없어 미정으로 두었습니다.', confidence: 0, needsVerification: true, sourceReferences: [] };
+    if (!entries[f.key] && !f.parts) entries[f.key] = { fieldKey: f.key, value: UNDECIDED, origin: 'UNDETERMINED', reason: 'AI 응답에 이 항목이 없어 미정으로 두었습니다.', confidence: 0, needsVerification: true, sourceReferences: [] };
+  for (const k of SUMMARY_KEYS) if (!entries[k] || isUndecided(entries[k])) entries[k] = composeSummary(k, entries);
   for (const e of Object.values(entries)) if (e.origin === 'USER_PROVIDED') e.locked = true;
   const markets = marketCodes(entries.markets.value);
   return { idea, mode: 'ai', model: a.model, generatedAt: new Date().toISOString(), productName: a.productName || fallbackName, entries, regulatory: syncRegulatory(a.regulatory, markets) };
@@ -359,13 +510,17 @@ export async function generateBlueprint(idea: string, onProgress: (p: GenProgres
  * New suggestions for some items ("다시 추천", or refreshing items marked for review).
  * Locked items are skipped; nothing else in the blueprint changes.
  */
-export async function refreshEntries(bp: Blueprint, keys: string[]): Promise<{ bp: Blueprint; error?: string }> {
-  const todo = keys.filter((k) => bp.entries[k] && !bp.entries[k].locked);
-  if (!todo.length) return { bp };
+export async function refreshEntries(bp: Blueprint, keys: string[]): Promise<{ bp: Blueprint; error?: string; keys: string[] }> {
+  const open = (k: string) => bp.entries[k] && !bp.entries[k].locked;
+  const asked = keys.filter(open);
+  // a summary item is re-suggested together with the detailed items it is built from (locked ones stay)
+  const todo = [...new Set(asked.flatMap((k) => (isSummary(k) ? [k, ...blueprintField(k)!.parts!.filter(open)] : [k])))];
+  if (!todo.length) return { bp, keys: [] };
   const avoid = Object.fromEntries(todo.map((k) => [k, [...(bp.entries[k].previous ?? []), bp.entries[k].value].filter((v) => v && v !== UNDECIDED)]));
   let fresh: BlueprintEntry[];
   let regulatory = bp.regulatory;
   let error: string | undefined;
+  const details = todo.filter((k) => !isSummary(k));
   if (bp.mode === 'ai') {
     try {
       const a = await callAi(bp.idea, { keys: todo, context: bp, avoid });
@@ -373,20 +528,28 @@ export async function refreshEntries(bp: Blueprint, keys: string[]): Promise<{ b
       if (a.regulatory.length) regulatory = a.regulatory;
     } catch (e) {
       error = `AI 재추천에 실패해 데모 규칙으로 추천했어요. (${e instanceof Error ? e.message : '오류'})`;
-      fresh = demoRefresh(bp, todo, avoid);
+      fresh = demoRefresh(bp, details, avoid);
     }
   } else {
     await new Promise((r) => window.setTimeout(r, 350));
-    fresh = demoRefresh(bp, todo, avoid);
+    fresh = demoRefresh(bp, details, avoid);
   }
   const entries = { ...bp.entries };
   for (const e of fresh) {
     const prev = entries[e.fieldKey];
-    if (!prev || prev.locked) continue;
+    if (!prev || prev.locked || !todo.includes(e.fieldKey)) continue;
     entries[e.fieldKey] = { ...e, needsVerification: e.needsVerification || !!blueprintField(e.fieldKey)?.verify, previous: [...new Set([...(prev.previous ?? []), prev.value])].slice(-6), review: undefined };
   }
-  const next = { ...bp, entries };
-  return { bp: { ...next, regulatory: syncRegulatory(regulatory, marketCodes(entries.markets.value)) }, error };
+  // summaries the AI did not answer (or Demo Mode) are rebuilt from the new detailed values
+  const answered = new Set(fresh.map((e) => e.fieldKey));
+  for (const k of todo)
+    if (isSummary(k) && (!answered.has(k) || isUndecided(entries[k]))) {
+      const prev = bp.entries[k];
+      entries[k] = { ...composeSummary(k, entries), locked: undefined, previous: [...new Set([...(prev.previous ?? []), prev.value])].slice(-6) };
+    }
+  syncSummaries(entries, details.filter((k) => !todo.some((s) => isSummary(s) && blueprintField(s)!.parts!.includes(k))));
+  const changed = Object.keys(entries).filter((k) => entries[k] !== bp.entries[k]);
+  return { bp: { ...bp, entries, regulatory: syncRegulatory(regulatory, marketCodes(entries.markets.value)) }, error, keys: changed };
 }
 
 /** Whole blueprint again. keepLocked=true keeps every value the user wrote or locked. */
@@ -400,26 +563,35 @@ export async function regenerateBlueprint(bp: Blueprint, keepLocked: boolean, on
 
 // ── editing ─────────────────────────────────────────────────────────────────
 
-/** The user's own value: shown as 사용자 입력, locked, and related items get "재검토 필요". */
+/**
+ * The user's own value: shown as 사용자 입력, locked, and related items get "재검토 필요" (never overwritten).
+ * A summary line is also read into the detailed items it states, so later steps get the user's condition.
+ */
 export function editEntry(bp: Blueprint, key: string, value: string): Blueprint {
   const prev = bp.entries[key];
   const f = blueprintField(key)!;
   const v = value.trim();
   if (prev && prev.value === v) return bp;
   const entries = { ...bp.entries };
-  entries[key] = {
-    fieldKey: key,
-    value: v || UNDECIDED,
-    origin: v ? 'USER_PROVIDED' : 'UNDETERMINED',
-    reason: v ? '사용자가 직접 수정한 값입니다.' : '사용자가 값을 비웠습니다.',
-    confidence: v ? 1 : 0,
-    needsVerification: !!f.verify || !v,
-    sourceReferences: v ? ['사용자 입력'] : [],
-    locked: !!v,
-    previous: prev ? [...new Set([...(prev.previous ?? []), prev.value])].slice(-6) : [],
-  };
-  for (const d of BLUEPRINT_DEPENDENTS[key] ?? []) if (entries[d] && d !== key) entries[d] = { ...entries[d], review: `${f.label} 변경` };
-  return { ...bp, entries, regulatory: key === 'markets' ? syncRegulatory(bp.regulatory, marketCodes(entries.markets.value)) : bp.regulatory };
+  entries[key] = userEntry(key, v, prev);
+  const changed = [key];
+  const why = `${f.label} 변경`;
+  if (f.parts && v) {
+    const parsed = parseSummary(key, v);
+    for (const p of f.parts) {
+      if (parsed[p]) {
+        if (parsed[p] !== entries[p]?.value) {
+          entries[p] = userEntry(p, parsed[p], entries[p], `"${f.label}"에 직접 적은 값입니다.`);
+          changed.push(p);
+        }
+      } else if (entries[p] && !entries[p].locked) entries[p] = { ...entries[p], review: why };
+    }
+  }
+  // a detailed item changed (from a later step) → summary lines built from it follow, unless the user wrote them
+  if (!f.parts) syncSummaries(entries, [key]);
+  const dependents = new Set(changed.flatMap((k) => [...(BLUEPRINT_DEPENDENTS[k] ?? []), ...(CORE_DEPENDENTS[k] ?? []), ...summariesOf(k).flatMap((s) => (s === key ? [] : CORE_DEPENDENTS[s] ?? []))]));
+  for (const d of dependents) if (entries[d] && !changed.includes(d)) entries[d] = { ...entries[d], review: why };
+  return { ...bp, entries, regulatory: changed.includes('markets') ? syncRegulatory(bp.regulatory, marketCodes(entries.markets.value)) : bp.regulatory };
 }
 
 export const setLocked = (bp: Blueprint, key: string, locked: boolean): Blueprint => ({ ...bp, entries: { ...bp.entries, [key]: { ...bp.entries[key], locked } } });
@@ -483,8 +655,8 @@ export function blueprintToIntake(bp: Blueprint, base: Intake): Intake {
   return next;
 }
 
-export function blueprintCounts(bp: Blueprint) {
-  const all = Object.values(bp.entries);
+export function blueprintCounts(bp: Blueprint, keys?: string[]) {
+  const all = keys ? keys.map((k) => bp.entries[k]).filter(Boolean) : Object.values(bp.entries);
   return {
     user: all.filter((e) => e.origin === 'USER_PROVIDED').length,
     ai: all.filter((e) => e.origin === 'AI_SUGGESTED').length,
@@ -508,6 +680,7 @@ export function readBlueprint(raw: unknown): Blueprint | undefined {
         ? { fieldKey: f.key, value: e.value, origin: e.origin === 'USER_PROVIDED' || e.origin === 'AI_SUGGESTED' ? e.origin : 'UNDETERMINED', reason: typeof e.reason === 'string' ? e.reason : '', confidence: typeof e.confidence === 'number' ? e.confidence : 0, needsVerification: e.needsVerification !== false, sourceReferences: Array.isArray(e.sourceReferences) ? e.sourceReferences.filter((s) => typeof s === 'string') : [], locked: e.locked === true, review: typeof e.review === 'string' ? e.review : undefined, previous: Array.isArray(e.previous) ? e.previous.filter((s) => typeof s === 'string') : [] }
         : { fieldKey: f.key, value: UNDECIDED, origin: 'UNDETERMINED', reason: '', confidence: 0, needsVerification: true, sourceReferences: [] };
   }
+  for (const k of SUMMARY_KEYS) if (!(b.entries as Record<string, unknown>)[k]) entries[k] = composeSummary(k, entries);
   const regulatory = Array.isArray(b.regulatory)
     ? b.regulatory.filter((r) => r && typeof r.country === 'string').map((r) => ({ country: r.country, status: r.status === 'VERIFIED' && r.source && r.checkedAt ? ('VERIFIED' as const) : ('REVIEW_REQUIRED' as const), items: Array.isArray(r.items) ? r.items : [], source: r.source ?? null, checkedAt: r.checkedAt ?? null, conditions: Array.isArray(r.conditions) ? r.conditions : [] }))
     : [];
