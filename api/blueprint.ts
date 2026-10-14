@@ -20,8 +20,6 @@ interface FieldDef {
   options?: string[];
   multi?: boolean;
   verify?: boolean;
-  /** summary item on the first screen (combines several detailed items) */
-  core?: boolean;
 }
 interface RequestBody {
   idea: string;
@@ -53,7 +51,6 @@ function parseBody(raw: unknown): RequestBody | null {
       options: Array.isArray(f.options) ? f.options.slice(0, 16).map((o) => str(o, 40)) : undefined,
       multi: f.multi === true,
       verify: f.verify === true,
-      core: f.core === true,
     });
   }
   const known = new Set(fields.map((f) => f.key));
@@ -82,15 +79,14 @@ const SYSTEM = `당신은 화장품 브랜드의 시니어 상품기획자(Produ
 - 실제 브랜드 제품명이나 특허·임상 결과를 사실처럼 만들어내지 않습니다. 벤치마킹은 제품 유형으로 쓰고 확인 필요로 둡니다.
 - confidence는 0~1 사이 숫자로, 아이디어에 근거가 많을수록 높게 씁니다.
 - 선택지가 주어진 항목은 가능하면 선택지 안에서 고르되, 더 맞는 값이 있으면 직접 씁니다.
-- 판매 국가가 여러 곳이면 모든 국가의 조건을 기획 전체(원료, 기능성, 표시·광고, 시험)에 함께 반영합니다.
-- [요약] 표시가 붙은 항목은 첫 화면에 보이는 핵심 요약입니다. 관련 상세 항목과 모순되지 않게 한 줄로 짧게 씁니다. 사용자가 쓴 조건이 들어 있으면 빠짐없이 그대로 포함하고, 그 경우에도 다른 부분을 AI가 보완했다면 origin은 AI_SUGGESTED로 두고 reason에 어느 부분이 사용자 입력인지 씁니다.`;
+- 판매 국가가 여러 곳이면 모든 국가의 조건을 기획 전체(원료, 기능성, 표시·광고, 시험)에 함께 반영합니다.`;
 
 function userPrompt(body: RequestBody) {
   const want = body.keys ? body.fields.filter((f) => body.keys!.includes(f.key)) : body.fields;
   const lines = want.map((f) => {
     const opts = f.options?.length ? ` · 선택지: ${f.options.join(' / ')}` : '';
     const avoid = body.avoid?.[f.key]?.length ? ` · 이미 제안한 값(다른 후보를 제시): ${body.avoid[f.key].join(' | ')}` : '';
-    return `- ${f.core ? '[요약] ' : ''}${f.key} (${f.label}): ${f.guide}${f.multi ? ' · 쉼표로 여러 개' : ''}${f.verify ? ' · 반드시 확인 필요 항목' : ''}${opts}${avoid}`;
+    return `- ${f.key} (${f.label}): ${f.guide}${f.multi ? ' · 쉼표로 여러 개' : ''}${f.verify ? ' · 반드시 확인 필요 항목' : ''}${opts}${avoid}`;
   });
   const ctx = Object.entries(body.context ?? {})
     .filter(([k]) => !body.keys?.includes(k))
