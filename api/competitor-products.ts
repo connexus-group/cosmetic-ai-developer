@@ -36,6 +36,8 @@ const status = () => ({
   storage: { supabase: db.supabaseConfigured(), env: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] },
   cacheHours: TTL_MS() / 3600_000,
   maxUrls: MAX_URLS,
+  // which deployment answered (Vercel system env, no secrets): helps when keys were added to another environment
+  deployment: { environment: process.env.VERCEL_ENV ?? 'local', branch: process.env.VERCEL_GIT_COMMIT_REF ?? null, commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null },
 });
 
 /** Public http(s) pages only: no credentials, no localhost / private network hosts. */
