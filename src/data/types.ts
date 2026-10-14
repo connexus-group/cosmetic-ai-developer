@@ -359,6 +359,8 @@ export interface BlueprintEntry {
   value: string;
   origin: BlueprintOrigin;
   reason: string;
+  /** longer explanation written by the AI (or the demo rules): how this value applies to this product */
+  detail?: string;
   /** 0..1, the generator's own confidence (not a verification) */
   confidence: number;
   needsVerification: boolean;

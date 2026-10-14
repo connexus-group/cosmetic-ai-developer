@@ -68,7 +68,12 @@ function parseBody(raw: unknown): RequestBody | null {
 const SYSTEM = `당신은 화장품 브랜드의 시니어 상품기획자(Product Planner)입니다. 비전문가 브랜드가 입력한 제품 아이디어를 바탕으로, 제조사에 전달하기 전 단계의 상세 제품 기획 초안을 작성합니다.
 
 작성 원칙:
-- 모든 값은 한국어로, 짧고 실무적으로 씁니다. 목록형 항목은 쉼표로 구분합니다.
+- 모든 값은 한국어로 씁니다. 목록형 항목은 쉼표로 구분합니다.
+- value 작성 방식:
+  - 선택지가 있는 항목과 목록형 항목은 value에 값만 짧게 씁니다(예: "밀키", "30ml", "탄력, 주름"). 다른 화면이 이 값을 그대로 읽습니다.
+  - 서술형 항목(컨셉, 차별화, USP, 구매 동기, 니즈, 사용감, 원료 선택 이유, 포지셔닝, 저자극 방향, 적합성, 규제 검토 등)은 이 제품에만 해당하는 구체적인 내용으로 2~3문장을 씁니다. "효과적인", "프리미엄" 같은 일반적인 표현만 나열하지 않습니다.
+- detail에는 모든 항목마다 2~4문장의 상세 설명을 씁니다. 이 값을 이 제품에 어떻게 적용하는지, 타깃·효능·제형·판매 국가와 어떻게 연결되는지, 제조사와 이야기할 때 무엇을 정해야 하는지를 구체적으로 적습니다. 사용자 입력 항목도 그 조건을 기획에 어떻게 반영할지 씁니다. 수치·원가·규제는 detail에서도 확정처럼 쓰지 않고 "확인 필요"로 표현합니다.
+- reason은 왜 이 값을 제안했는지 한 문장으로 씁니다.
 - origin 규칙:
   - USER_PROVIDED: 사용자 아이디어 문장에 명시된 조건만. 사용자가 쓴 조건은 바꾸지 말고 그대로 옮깁니다.
   - AI_SUGGESTED: 아이디어에서 합리적으로 보완한 제안. 왜 그렇게 제안했는지 reason에 한 문장으로 씁니다.
@@ -115,10 +120,11 @@ function schema(keys: string[]) {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['fieldKey', 'value', 'origin', 'reason', 'confidence', 'needsVerification', 'sourceReferences'],
+          required: ['fieldKey', 'value', 'detail', 'origin', 'reason', 'confidence', 'needsVerification', 'sourceReferences'],
           properties: {
             fieldKey: { type: 'string', enum: keys },
             value: { type: 'string' },
+            detail: { type: 'string' },
             origin: { type: 'string', enum: [...ORIGINS] },
             reason: { type: 'string' },
             confidence: { type: 'number' },
@@ -146,7 +152,7 @@ function schema(keys: string[]) {
 
 interface ModelOutput {
   productName: string;
-  fields: { fieldKey: string; value: string; origin: string; reason: string; confidence: number; needsVerification: boolean; sourceReferences: string[] }[];
+  fields: { fieldKey: string; value: string; detail?: string; origin: string; reason: string; confidence: number; needsVerification: boolean; sourceReferences: string[] }[];
   regulatory: { country: string; items: string[]; conditions: string[] }[];
 }
 
@@ -163,6 +169,7 @@ function sanitize(out: ModelOutput, body: RequestBody) {
     entries.push({
       fieldKey: f.fieldKey,
       value: String(f.value ?? '').slice(0, 600),
+      detail: String(f.detail ?? '').slice(0, 1200),
       origin,
       reason: String(f.reason ?? '').slice(0, 600),
       confidence: Math.max(0, Math.min(1, Number(f.confidence) || 0)),

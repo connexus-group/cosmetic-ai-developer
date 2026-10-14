@@ -263,6 +263,13 @@ function EntryRow({ f, bp, onChange, actions }: { f: BlueprintFieldDef; bp: Blue
             <div className="text-[14px] leading-relaxed text-ink-900">{e.value}</div>
           )}
 
+          {e.detail && !editing && !undecided && (
+            <p data-testid="bp-detail" className="mt-1.5 text-[12.5px] leading-relaxed text-slate-600">
+              <span className={clsx('mr-1 text-[10px] font-semibold', bp.mode === 'ai' ? 'text-violet-700' : 'text-amber-700')}>{bp.mode === 'ai' ? 'AI 설명' : '데모 설명'}</span>
+              {e.detail}
+            </p>
+          )}
+
           {e.review && !editing && (
             <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-sky-50 px-3 py-2 text-[12px] text-sky-900">
               <AlertTriangle size={13} /> <b>재검토 필요</b> · {e.review}
