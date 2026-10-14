@@ -140,6 +140,8 @@ export interface Project {
   claimCopy: string;
   /** last real-data query (Naver DataLab) the user ran on Market / Consumer / Trend */
   marketQuery?: { category: string; categoryCode: string; keywords: string[]; months: number };
+  /** competitor product page URLs the user asked to collect with Firecrawl (Competitors screen) */
+  competitorUrls?: string[];
   /** user edits on the brief */
   brief: Record<string, string>;
 }
@@ -361,6 +363,8 @@ export interface BlueprintEntry {
   value: string;
   origin: BlueprintOrigin;
   reason: string;
+  /** longer explanation written by the AI (or the demo rules): how this value applies to this product */
+  detail?: string;
   /** 0..1, the generator's own confidence (not a verification) */
   confidence: number;
   needsVerification: boolean;

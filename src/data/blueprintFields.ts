@@ -19,19 +19,9 @@ export interface BlueprintFieldDef {
   spec?: SpecFieldId;
   /** regulatory/verification items: never shown as confirmed */
   verify?: boolean;
-  /** summary item shown on the first screen; built from these detailed items */
-  parts?: string[];
 }
 
 export const BLUEPRINT_FIELDS: BlueprintFieldDef[] = [
-  // Summary items for the first screen (each one combines several detailed items below)
-  { key: 'productKind', group: 'product', label: '제품 유형', guide: '카테고리와 세부 유형을 한 줄로 (예: 스킨케어 · 앰플)', parts: ['category', 'productType'] },
-  { key: 'pitch', group: 'product', label: '차별화 포인트', guide: '제품 컨셉·USP·핵심 키워드를 1~2문장으로 통합', parts: ['concept', 'differentiation', 'usp', 'keywords'] },
-  { key: 'target', group: 'target', label: '타깃 소비자', guide: '연령·성별·피부 타입·주요 고민을 한 줄로 (예: 30대 여성 · 민감성 · 탄력 저하)', parts: ['ages', 'gender', 'skinTypes', 'concerns'] },
-  { key: 'texture', group: 'formula', label: '제형 및 사용감', guide: '제형·흡수력·끈적임·마무리감을 한 줄로 (예: 밀키 제형 · 빠른 흡수 · 끈적임 없음 · 촉촉한 마무리)', parts: ['textureType', 'absorption', 'stickiness', 'finish', 'viscosity', 'sensory'] },
-  { key: 'keyIngredients', group: 'ingredients', label: '핵심 원료', guide: 'Hero/Active 원료 후보 요약 (예: Hero: PDRN / Active: 아데노신, 펩타이드)', parts: ['hero', 'actives'], verify: true },
-  { key: 'pack', group: 'commercial', label: '용량 및 패키지', guide: '용량·용기 형태·재질을 한 줄로 (예: 30ml · 에어리스 · PP)', parts: ['size', 'container', 'material'] },
-
   // A. PRODUCT INFORMATION
   { key: 'category', group: 'product', label: '제품 카테고리', guide: '대분류 하나', options: ['스킨케어', '선케어', '클렌징', '헤어', '바디', '메이크업'], spec: 'category' },
   { key: 'productType', group: 'product', label: '세부 제품 유형', guide: '세부 유형 하나', options: ['앰플/세럼', '에센스', '크림', '토너', '로션', '패드', '마스크팩', '선크림', '클렌저'], spec: 'subtype' },
@@ -75,7 +65,7 @@ export const BLUEPRINT_FIELDS: BlueprintFieldDef[] = [
   { key: 'targetPrice', group: 'commercial', label: '목표 판매가', guide: '원 단위 금액 (예: 32,000원)', spec: 'targetPrice' },
   { key: 'targetCost', group: 'commercial', label: '목표 제조원가', guide: '원 단위 금액. 실제 견적이 아니므로 확인 필요', spec: 'targetCost', verify: true },
   { key: 'size', group: 'commercial', label: '권장 용량', guide: '하나', options: ['15ml', '30ml', '50ml', '100ml', '150ml'], spec: 'size' },
-  { key: 'firstRun', group: 'commercial', label: '초도 생산수량', guide: '예상 수량 하나. 실제 MOQ는 제조사 확인 필요', options: ['3,000개', '5,000개', '10,000개'], spec: 'firstRun', verify: true },
+  { key: 'firstRun', group: 'commercial', label: '초도 생산수량', guide: '하나', options: ['3,000개', '5,000개', '10,000개'], spec: 'firstRun' },
   { key: 'container', group: 'commercial', label: '권장 패키지', guide: '용기 형태 하나', options: ['에어리스', '펌프', '스포이드', '튜브', '단지', '스프레이'], spec: 'container' },
   { key: 'material', group: 'commercial', label: '용기 재질', guide: '용기 재질 (예: PP, PETG, 유리)' },
   { key: 'channels', group: 'commercial', label: '유통채널', guide: '판매 채널', options: ['자사몰', '올리브영', '쿠팡', '약국', '백화점', '면세점', '해외 플랫폼'], multi: true, spec: 'channels' },
@@ -124,40 +114,4 @@ export const MARKET_NAMES: Record<string, string[]> = {
   EU: ['유럽연합', '유럽', 'eu'],
   UK: ['영국', 'uk'],
   SEA: ['동남아', '동남아시아', 'asean'],
-};
-
-// ── First screen: 4 sections × 3 summary items ──────────────────────────────
-
-export const CORE_SECTIONS: { id: string; no: string; title: string; keys: string[] }[] = [
-  { id: 'concept', no: '01', title: 'PRODUCT CONCEPT', keys: ['productKind', 'benefits', 'pitch'] },
-  { id: 'market', no: '02', title: 'TARGET & MARKET', keys: ['target', 'markets', 'channels'] },
-  { id: 'spec', no: '03', title: 'PRODUCT SPEC', keys: ['texture', 'keyIngredients', 'pack'] },
-  { id: 'business', no: '04', title: 'BUSINESS', keys: ['targetPrice', 'targetCost', 'firstRun'] },
-];
-export const CORE_KEYS = CORE_SECTIONS.flatMap((s) => s.keys);
-/** labels on the first screen where they differ from the detailed item */
-export const CORE_LABELS: Record<string, string> = { channels: '주요 판매 채널', firstRun: '예상 초도 생산수량', markets: '주요 판매 국가' };
-export const coreLabel = (key: string) => CORE_LABELS[key] ?? blueprintField(key)?.label ?? key;
-
-/** Changing a summary item marks these summary items "재검토 필요". */
-/** detailed items of a summary item that appear in its one-line value */
-export const CORE_SHOWN: Record<string, string[]> = {
-  productKind: ['category', 'productType'],
-  pitch: ['usp', 'differentiation', 'keywords'],
-  target: ['ages', 'gender', 'skinTypes', 'concerns'],
-  texture: ['textureType', 'absorption', 'stickiness', 'finish'],
-  keyIngredients: ['hero', 'actives'],
-  pack: ['size', 'container', 'material'],
-};
-
-export const CORE_DEPENDENTS: Record<string, string[]> = {
-  productKind: ['texture', 'pack'],
-  benefits: ['pitch', 'keyIngredients'],
-  target: ['pitch', 'texture'],
-  markets: ['keyIngredients'],
-  texture: ['pack'],
-  keyIngredients: ['targetCost'],
-  pack: ['targetCost'],
-  targetPrice: ['targetCost'],
-  targetCost: ['keyIngredients', 'pack'],
 };
