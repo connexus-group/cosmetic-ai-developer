@@ -70,7 +70,8 @@ export async function GET(request: Request) {
       return [];
     });
   }
-  return json(200, { ...status(), products, storageError });
+  const storageCheck = db.supabaseConfigured() ? await db.pingProducts() : null;
+  return json(200, { ...status(), storageCheck, products, storageError });
 }
 
 async function collectOne(url: string, refresh: boolean, stop: { code: string; message: string } | null): Promise<ItemResult> {

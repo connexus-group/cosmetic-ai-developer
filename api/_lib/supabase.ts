@@ -11,8 +11,17 @@ import type { CompetitorProduct } from './product.js';
 
 export const http = { fetch: (url: string, init: RequestInit) => fetch(url, init) };
 
+/** Accepts the full Project URL, a host without https://, or just the project ref (e.g. "abcd…xyz"). */
+export function supabaseBaseUrl(raw: string | undefined) {
+  const v = raw?.trim().replace(/\/+$/, '');
+  if (!v) return undefined;
+  if (/^https?:\/\//i.test(v)) return v;
+  if (/^[a-z0-9]{20}$/i.test(v)) return `https://${v.toLowerCase()}.supabase.co`;
+  return `https://${v}`;
+}
+
 function cfg() {
-  const url = process.env.SUPABASE_URL?.trim().replace(/\/+$/, '');
+  const url = supabaseBaseUrl(process.env.SUPABASE_URL);
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   return url && key ? { url, key } : null;
 }
@@ -219,4 +228,15 @@ export async function loadProducts(ids: string[]): Promise<CompetitorProduct[]> 
 
 export async function logProductAttempt(url: string, status: string, error: string | null) {
   await rest('competitor_fetch_log', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({ url, status, error: error?.slice(0, 500) ?? null }) });
+}
+
+/** Reads one row id so the status check can show whether the table is reachable before credits are spent. */
+export async function pingProducts(): Promise<{ ok: true; host: string } | { ok: false; host: string | null; error: string }> {
+  const host = cfg() ? new URL(cfg()!.url).host : null;
+  try {
+    await rest('competitor_products?select=id&limit=1');
+    return { ok: true, host: host ?? '' };
+  } catch (e) {
+    return { ok: false, host, error: (e as Error).message.slice(0, 200) };
+  }
 }
