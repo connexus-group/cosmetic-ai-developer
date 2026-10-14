@@ -37,7 +37,7 @@ export interface AdapterInfo {
 
 export class AdapterError extends Error {
   constructor(
-    readonly code: 'NOT_CONFIGURED' | 'AUTH' | 'RATE_LIMIT' | 'BAD_REQUEST' | 'UPSTREAM' | 'NETWORK',
+    readonly code: 'NOT_CONFIGURED' | 'AUTH' | 'RATE_LIMIT' | 'QUOTA' | 'BAD_REQUEST' | 'UPSTREAM' | 'NETWORK',
     message: string,
     readonly status?: number,
   ) {

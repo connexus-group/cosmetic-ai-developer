@@ -7,6 +7,7 @@
  */
 import { naverShoppingAdapter } from './naverShopping.js';
 import { comtradeInfo } from './unComtrade.js';
+import { firecrawlInfo } from './firecrawl.js';
 import type { AdapterInfo, DataAdapter } from './types.js';
 
 export const ADAPTERS: Record<string, DataAdapter> = {
@@ -24,5 +25,5 @@ export const PLANNED: AdapterInfo[] = [
 ];
 
 export function sourceStatus() {
-  return [...Object.values(ADAPTERS).map((a) => a.info()), comtradeInfo(), ...PLANNED];
+  return [...Object.values(ADAPTERS).map((a) => a.info()), comtradeInfo(), firecrawlInfo(), ...PLANNED];
 }

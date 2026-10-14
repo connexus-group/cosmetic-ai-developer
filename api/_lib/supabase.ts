@@ -7,6 +7,7 @@
  */
 import type { MarketQuery } from './adapters/types.js';
 import type { AiStatement, Observation } from './observation.js';
+import type { CompetitorProduct } from './product.js';
 
 export const http = { fetch: (url: string, init: RequestInit) => fetch(url, init) };
 
@@ -125,4 +126,96 @@ export async function saveAnalysis(queryHash: string, model: string, statements:
     prefer: 'return=minimal',
     body: JSON.stringify(statements.map((s) => ({ query_hash: queryHash, model, statement: s.text, observation_ids: s.observationIds, data_type: s.dataType, verification_status: 'UNVERIFIED' }))),
   });
+}
+
+// ── Competitor products (Firecrawl) · schema: supabase/migrations/20261014000000_competitor_products.sql ──
+
+interface ProductRow {
+  id: string;
+  url: string;
+  final_url: string;
+  domain: string;
+  collected_at: string;
+  product_name: string | null;
+  brand: string | null;
+  page_title: string | null;
+  price_value: number | null;
+  price_text: string | null;
+  currency: string | null;
+  volume_value: number | null;
+  volume_unit: string | null;
+  volume_text: string | null;
+  ingredients: string[];
+  ingredients_dropped: number;
+  field_status: CompetitorProduct['fieldStatus'];
+  robots_url: string | null;
+  source_name: string;
+  data_type: 'COLLECTED';
+  markdown_hash: string;
+  markdown_chars: number;
+}
+
+const toProductRow = (p: CompetitorProduct): ProductRow => ({
+  id: p.id,
+  url: p.url,
+  final_url: p.finalUrl,
+  domain: p.domain,
+  collected_at: p.collectedAt,
+  product_name: p.productName,
+  brand: p.brand,
+  page_title: p.pageTitle,
+  price_value: p.priceValue,
+  price_text: p.priceText,
+  currency: p.currency,
+  volume_value: p.volumeValue,
+  volume_unit: p.volumeUnit,
+  volume_text: p.volumeText,
+  ingredients: p.ingredients,
+  ingredients_dropped: p.ingredientsDropped,
+  field_status: p.fieldStatus,
+  robots_url: p.robotsUrl,
+  source_name: p.sourceName,
+  data_type: p.dataType,
+  markdown_hash: p.markdownHash,
+  markdown_chars: p.markdownChars,
+});
+
+const fromProductRow = (r: ProductRow): CompetitorProduct => ({
+  id: r.id,
+  url: r.url,
+  finalUrl: r.final_url,
+  domain: r.domain,
+  collectedAt: r.collected_at,
+  productName: r.product_name,
+  brand: r.brand,
+  pageTitle: r.page_title,
+  priceValue: r.price_value === null ? null : Number(r.price_value),
+  priceText: r.price_text,
+  currency: r.currency,
+  volumeValue: r.volume_value === null ? null : Number(r.volume_value),
+  volumeUnit: r.volume_unit,
+  volumeText: r.volume_text,
+  ingredients: r.ingredients ?? [],
+  ingredientsDropped: r.ingredients_dropped ?? 0,
+  fieldStatus: r.field_status,
+  robotsUrl: r.robots_url,
+  sourceName: r.source_name,
+  dataType: 'COLLECTED',
+  markdownHash: r.markdown_hash,
+  markdownChars: r.markdown_chars,
+});
+
+export async function saveProducts(list: CompetitorProduct[]) {
+  if (!list.length) return;
+  await rest('competitor_products?on_conflict=id', { method: 'POST', body: JSON.stringify(list.map(toProductRow)), prefer: 'resolution=merge-duplicates,return=minimal' });
+}
+
+export async function loadProducts(ids: string[]): Promise<CompetitorProduct[]> {
+  if (!ids.length) return [];
+  const rows = (await rest(`competitor_products?id=in.(${ids.map(encodeURIComponent).join(',')})&select=*&order=collected_at.desc`)) as ProductRow[] | null;
+  return (rows ?? []).map(fromProductRow);
+}
+
+export async function logProductAttempt(url: string, status: string, error: string | null) {
+  await rest('competitor_fetch_log', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({ url, status, error: error?.slice(0, 500) ?? null }) });
 }
