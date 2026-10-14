@@ -140,15 +140,17 @@ function SetupGuide() {
       <p>네이버 데이터랩 API Key가 서버에 설정되지 않아 실제 데이터를 가져오지 않았습니다. 이 화면의 아래 수치는 모두 데모 데이터입니다.</p>
       <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs">
         <li>
-          <a className="underline" href="https://developers.naver.com/apps/#/register" target="_blank" rel="noreferrer">
-            네이버 개발자센터
+          데이터랩(쇼핑인사이트)은 새로 신청할 때 네이버 개발자센터가 아니라{' '}
+          <a className="underline" href="https://www.ncloud.com/" target="_blank" rel="noreferrer">
+            네이버 클라우드
           </a>
-          에서 애플리케이션을 등록하고 사용 API에 <b>데이터랩(쇼핑인사이트)</b>을 추가합니다.
+          의 NAVER API HUB에서 신청합니다. 콘솔 → NAVER API HUB → 이용 신청 → Application 등록에서 Data Lab의 <b>쇼핑 인사이트</b>를 고릅니다.
         </li>
+        <li>NAVER API HUB 이용 관리 → 한도 설정에서 월·일 호출 한도를 걸어 요금이 나오지 않게 합니다. (현재 한시 무료, 유료 전환 시 사전 공지)</li>
         <li>
-          Vercel → Settings → Environment Variables에 <code>NAVER_CLIENT_ID</code>, <code>NAVER_CLIENT_SECRET</code>을 넣고 다시 배포합니다. (로컬은 <code>.env.local</code>)
+          Vercel → Settings → Environment Variables에 <code>NAVER_CLIENT_ID</code>, <code>NAVER_CLIENT_SECRET</code>, <code>NAVER_DATALAB_GATEWAY=apihub</code>를 넣고 다시 배포합니다. (로컬은 <code>.env.local</code>)
         </li>
-        <li>네이버 개발자센터 키는 무료입니다(하루 1,000회 한도, 넘으면 과금 없이 호출만 막힘). NAVER API HUB 키는 유료 전환 예정이라 권장하지 않습니다.</li>
+        <li>예전에 네이버 개발자센터에서 데이터랩 키를 받아 둔 경우에는 그 키를 그대로 쓰고 <code>NAVER_DATALAB_GATEWAY</code>는 넣지 않습니다.</li>
       </ol>
     </Notice>
   );

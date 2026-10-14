@@ -2,7 +2,8 @@
  * Naver DataLab Shopping Insight (네이버 데이터랩 쇼핑인사이트) — the first real data source.
  *
  * Two official gateways serve the same API; pick one with NAVER_DATALAB_GATEWAY:
- *   openapi (default)  https://openapi.naver.com/v1/datalab/shopping   · app from developers.naver.com
+ *   openapi (default)  https://openapi.naver.com/v1/datalab/shopping   · app from developers.naver.com (existing keys only;
+ *                      new DataLab applications moved to NAVER API HUB in 2026)
  *   apihub             https://naverapihub.apigw.ntruss.com/shopping/v1 · NAVER API HUB on NAVER Cloud
  *
  * Every value it returns is a RELATIVE click index (the largest value in one query's result = 100).
@@ -114,7 +115,7 @@ export const naverShoppingAdapter: DataAdapter = {
       env: ['NAVER_CLIENT_ID', 'NAVER_CLIENT_SECRET', 'NAVER_DATALAB_GATEWAY (선택)'],
       costNote:
         gateway === 'apihub'
-          ? 'NAVER API HUB: 현재 한시 무료이나 유료 전환 예정(사전 공지). 무료로만 쓰려면 기본값 openapi 사용.'
+          ? 'NAVER API HUB: 현재 한시 무료, 유료 전환 시 사전 공지. 이용 관리에서 월·일 한도를 걸어 과금 방지.'
           : '네이버 개발자센터 오픈API: 무료, 데이터랩 하루 1,000회 한도.',
     };
   },
