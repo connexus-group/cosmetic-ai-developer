@@ -2,7 +2,7 @@
  * Supabase storage over its REST API (PostgREST). Server only: uses the service role key,
  * which must never reach the browser. Schema: supabase/migrations/20261013000000_market_data.sql
  *
- * Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY. Without them the pipeline still runs and
+ * Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (a secret key sb_secret_… or the legacy service_role key). Without them the pipeline still runs and
  * answers from the live API, but nothing is stored and there is no cross-request cache.
  */
 import type { MarketQuery } from './adapters/types.js';
@@ -23,7 +23,8 @@ async function rest(path: string, init: RequestInit & { prefer?: string } = {}) 
   if (!c) throw new Error('Supabase not configured');
   const r = await http.fetch(`${c.url}/rest/v1/${path}`, {
     ...init,
-    headers: { apikey: c.key, Authorization: `Bearer ${c.key}`, 'Content-Type': 'application/json', ...(init.prefer ? { Prefer: init.prefer } : {}) },
+    // New secret keys (sb_secret_…) are not JWTs and go in `apikey` only; legacy service_role JWTs also need the Bearer header.
+    headers: { apikey: c.key, ...(c.key.startsWith('eyJ') ? { Authorization: `Bearer ${c.key}` } : {}), 'Content-Type': 'application/json', ...(init.prefer ? { Prefer: init.prefer } : {}) },
     signal: AbortSignal.timeout(10_000),
   });
   if (!r.ok) throw new Error(`Supabase ${r.status}: ${(await r.text().catch(() => '')).slice(0, 200)}`);
