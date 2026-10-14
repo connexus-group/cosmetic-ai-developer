@@ -7,16 +7,34 @@
     "api/competitor-products.ts": { "maxDuration": 120 }
   },
   "rewrites": [
-    { "source": "/((?!assets/|api/|favicon\\.svg$).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!assets/|api/|favicon\\.svg$).*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
       "source": "/assets/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     },
     {
       "source": "/((?!assets/).*)",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
     }
-  ]
+  ],
+  "functions": {
+    "api/blueprint.ts": {
+      "maxDuration": 300
+    }
+  }
 }

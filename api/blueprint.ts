@@ -20,8 +20,6 @@ interface FieldDef {
   options?: string[];
   multi?: boolean;
   verify?: boolean;
-  /** summary item on the first screen (combines several detailed items) */
-  core?: boolean;
 }
 interface RequestBody {
   idea: string;
@@ -53,7 +51,6 @@ function parseBody(raw: unknown): RequestBody | null {
       options: Array.isArray(f.options) ? f.options.slice(0, 16).map((o) => str(o, 40)) : undefined,
       multi: f.multi === true,
       verify: f.verify === true,
-      core: f.core === true,
     });
   }
   const known = new Set(fields.map((f) => f.key));
@@ -71,7 +68,12 @@ function parseBody(raw: unknown): RequestBody | null {
 const SYSTEM = `당신은 화장품 브랜드의 시니어 상품기획자(Product Planner)입니다. 비전문가 브랜드가 입력한 제품 아이디어를 바탕으로, 제조사에 전달하기 전 단계의 상세 제품 기획 초안을 작성합니다.
 
 작성 원칙:
-- 모든 값은 한국어로, 짧고 실무적으로 씁니다. 목록형 항목은 쉼표로 구분합니다.
+- 모든 값은 한국어로 씁니다. 목록형 항목은 쉼표로 구분합니다.
+- value 작성 방식:
+  - 선택지가 있는 항목과 목록형 항목은 value에 값만 짧게 씁니다(예: "밀키", "30ml", "탄력, 주름"). 다른 화면이 이 값을 그대로 읽습니다.
+  - 서술형 항목(컨셉, 차별화, USP, 구매 동기, 니즈, 사용감, 원료 선택 이유, 포지셔닝, 저자극 방향, 적합성, 규제 검토 등)은 이 제품에만 해당하는 구체적인 내용으로 2~3문장을 씁니다. "효과적인", "프리미엄" 같은 일반적인 표현만 나열하지 않습니다.
+- detail에는 모든 항목마다 2~4문장의 상세 설명을 씁니다. 이 값을 이 제품에 어떻게 적용하는지, 타깃·효능·제형·판매 국가와 어떻게 연결되는지, 제조사와 이야기할 때 무엇을 정해야 하는지를 구체적으로 적습니다. 사용자 입력 항목도 그 조건을 기획에 어떻게 반영할지 씁니다. 수치·원가·규제는 detail에서도 확정처럼 쓰지 않고 "확인 필요"로 표현합니다.
+- reason은 왜 이 값을 제안했는지 한 문장으로 씁니다.
 - origin 규칙:
   - USER_PROVIDED: 사용자 아이디어 문장에 명시된 조건만. 사용자가 쓴 조건은 바꾸지 말고 그대로 옮깁니다.
   - AI_SUGGESTED: 아이디어에서 합리적으로 보완한 제안. 왜 그렇게 제안했는지 reason에 한 문장으로 씁니다.
@@ -82,15 +84,14 @@ const SYSTEM = `당신은 화장품 브랜드의 시니어 상품기획자(Produ
 - 실제 브랜드 제품명이나 특허·임상 결과를 사실처럼 만들어내지 않습니다. 벤치마킹은 제품 유형으로 쓰고 확인 필요로 둡니다.
 - confidence는 0~1 사이 숫자로, 아이디어에 근거가 많을수록 높게 씁니다.
 - 선택지가 주어진 항목은 가능하면 선택지 안에서 고르되, 더 맞는 값이 있으면 직접 씁니다.
-- 판매 국가가 여러 곳이면 모든 국가의 조건을 기획 전체(원료, 기능성, 표시·광고, 시험)에 함께 반영합니다.
-- [요약] 표시가 붙은 항목은 첫 화면에 보이는 핵심 요약입니다. 관련 상세 항목과 모순되지 않게 한 줄로 짧게 씁니다. 사용자가 쓴 조건이 들어 있으면 빠짐없이 그대로 포함하고, 그 경우에도 다른 부분을 AI가 보완했다면 origin은 AI_SUGGESTED로 두고 reason에 어느 부분이 사용자 입력인지 씁니다.`;
+- 판매 국가가 여러 곳이면 모든 국가의 조건을 기획 전체(원료, 기능성, 표시·광고, 시험)에 함께 반영합니다.`;
 
 function userPrompt(body: RequestBody) {
   const want = body.keys ? body.fields.filter((f) => body.keys!.includes(f.key)) : body.fields;
   const lines = want.map((f) => {
     const opts = f.options?.length ? ` · 선택지: ${f.options.join(' / ')}` : '';
     const avoid = body.avoid?.[f.key]?.length ? ` · 이미 제안한 값(다른 후보를 제시): ${body.avoid[f.key].join(' | ')}` : '';
-    return `- ${f.core ? '[요약] ' : ''}${f.key} (${f.label}): ${f.guide}${f.multi ? ' · 쉼표로 여러 개' : ''}${f.verify ? ' · 반드시 확인 필요 항목' : ''}${opts}${avoid}`;
+    return `- ${f.key} (${f.label}): ${f.guide}${f.multi ? ' · 쉼표로 여러 개' : ''}${f.verify ? ' · 반드시 확인 필요 항목' : ''}${opts}${avoid}`;
   });
   const ctx = Object.entries(body.context ?? {})
     .filter(([k]) => !body.keys?.includes(k))
@@ -119,10 +120,11 @@ function schema(keys: string[]) {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['fieldKey', 'value', 'origin', 'reason', 'confidence', 'needsVerification', 'sourceReferences'],
+          required: ['fieldKey', 'value', 'detail', 'origin', 'reason', 'confidence', 'needsVerification', 'sourceReferences'],
           properties: {
             fieldKey: { type: 'string', enum: keys },
             value: { type: 'string' },
+            detail: { type: 'string' },
             origin: { type: 'string', enum: [...ORIGINS] },
             reason: { type: 'string' },
             confidence: { type: 'number' },
@@ -150,7 +152,7 @@ function schema(keys: string[]) {
 
 interface ModelOutput {
   productName: string;
-  fields: { fieldKey: string; value: string; origin: string; reason: string; confidence: number; needsVerification: boolean; sourceReferences: string[] }[];
+  fields: { fieldKey: string; value: string; detail?: string; origin: string; reason: string; confidence: number; needsVerification: boolean; sourceReferences: string[] }[];
   regulatory: { country: string; items: string[]; conditions: string[] }[];
 }
 
@@ -167,6 +169,7 @@ function sanitize(out: ModelOutput, body: RequestBody) {
     entries.push({
       fieldKey: f.fieldKey,
       value: String(f.value ?? '').slice(0, 600),
+      detail: String(f.detail ?? '').slice(0, 1200),
       origin,
       reason: String(f.reason ?? '').slice(0, 600),
       confidence: Math.max(0, Math.min(1, Number(f.confidence) || 0)),
