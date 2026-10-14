@@ -4,6 +4,8 @@ import { Star } from 'lucide-react';
 import { CartesianGrid, ReferenceArea, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from 'recharts';
 import { AiInsight } from '@/components/AiInsight';
 import { CompetitorDemoNotice, RealCompetitorProducts } from '@/components/competitors/RealCompetitorProducts';
+import { CompetitorDiscovery } from '@/components/competitors/CompetitorDiscovery';
+import { CompetitorAnalysis } from '@/components/competitors/CompetitorAnalysis';
 import { TipBox } from '@/components/charts';
 import { AnalyzingState, Card, DemoBadge, KindBadge, MetricCard, PageIntro, Section, Segmented, SourceNote } from '@/components/ui';
 import { DEMO_SOURCE } from '@/data/mock';
@@ -130,7 +132,9 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="space-y-6">
       <PageIntro no="03" title="Competitor Analysis" ko="경쟁제품 분석" question="비슷한 제품은 누가, 얼마에, 어떤 메시지로 팔고 있나요?" right={<DemoBadge />} />
       <SpecNotes step="competitors" />
+      <CompetitorDiscovery />
       <RealCompetitorProducts />
+      <CompetitorAnalysis />
       <CompetitorDemoNotice />
       {children}
     </div>

@@ -92,6 +92,7 @@ async function collectOne(url: string, refresh: boolean, stop: { code: string; m
   }
 
   const scrape = await scrapeProduct(clean); // AdapterError propagates to the caller
+  if (db.supabaseConfigured()) await db.logUsage('scrape', CREDITS_PER_PAGE, clean).catch(() => undefined);
   const product = validateProduct(clean, scrape, access.robotsUrl);
   if (!hasData(product)) {
     if (db.supabaseConfigured()) await db.logProductAttempt(clean, 'NO_DATA', null).catch(() => undefined);
@@ -101,8 +102,9 @@ async function collectOne(url: string, refresh: boolean, stop: { code: string; m
   let message: string | undefined;
   if (db.supabaseConfigured()) {
     try {
-      await db.saveProducts([product]);
+      const saved = await db.saveProducts([product]);
       stored = true;
+      if (saved.legacy) message = '저장됨 (정상가·할인가·USP 등 새 항목은 Supabase에 새 마이그레이션 20261014120000을 실행해야 저장됩니다)';
       await db.logProductAttempt(clean, 'OK', null).catch(() => undefined);
     } catch (e) {
       message = `Supabase 저장 실패: ${(e as Error).message}`;

@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Database, ExternalLink, Globe, KeyRound, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Button, KindBadge, Section } from '@/components/ui';
 import { Notice, Spinner } from '@/components/market/RealMarketData';
 import { collectCompetitors, CompetitorDataError, fetchCompetitorStatus, parseUrlList, type CollectResult, type CompetitorProduct, type CompetitorStatus, type FieldStatus, type ItemResult } from '@/data/competitorProducts';
+import { publishProducts, sameUrl, useCollectedProducts } from '@/data/competitorStore';
 import { useProject } from '@/pages/project/ProjectLayout';
 
 const fmtDateTime = (iso: string) => {
@@ -38,7 +39,10 @@ export function RealCompetitorProducts() {
   useEffect(() => {
     let alive = true;
     fetchCompetitorStatus(saved).then(
-      (s) => alive && setStatus({ s }),
+      (s) => {
+        publishProducts(s.products);
+        if (alive) setStatus({ s });
+      },
       (e: Error) => alive && setStatus({ err: e.message }),
     );
     return () => {
@@ -55,19 +59,27 @@ export function RealCompetitorProducts() {
     if (!urls.length) return setLoad({ state: 'error', code: 'BAD_REQUEST', message: '수집할 제품 페이지 URL을 한 줄에 하나씩 입력하세요.' });
     setLoad({ state: 'loading' });
     collectCompetitors(urls, refresh).then(
-      (data) => setLoad({ state: 'done', data }),
+      (data) => {
+        publishProducts(data.results.flatMap((r) => (r.product ? [r.product] : [])));
+        setLoad({ state: 'done', data });
+      },
       (e: unknown) => setLoad({ state: 'error', code: e instanceof CompetitorDataError ? e.code : 'ERROR', message: e instanceof Error ? e.message : '알 수 없는 오류' }),
     );
   };
 
-  /** stored rows first, replaced by anything collected in this session; only URLs still in the list */
-  const products = useMemo(() => {
-    const urls = new Set(project.competitorUrls ?? []);
-    const byId = new Map<string, CompetitorProduct>();
-    for (const p of status.s?.products ?? []) byId.set(p.id, p);
-    if (load.state === 'done') for (const r of load.data.results) if (r.product) byId.set(r.product.id, r.product);
-    return [...byId.values()].filter((p) => urls.size === 0 || [...urls].some((u) => sameUrl(u, p.url)));
-  }, [status.s, load, project.competitorUrls]);
+  // URLs added by the auto discovery above show up in the list too
+  const urlKey = (project.competitorUrls ?? []).join('\n');
+  useEffect(() => {
+    setDraft((d) => {
+      const cur = parseUrlList(d);
+      const add = (project.competitorUrls ?? []).filter((u) => !cur.some((c) => sameUrl(c, u)));
+      return add.length ? [...cur, ...add].join('\n') : d;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlKey]);
+
+  /** stored rows and anything collected in this session (shared store); only URLs still in the list */
+  const products = useCollectedProducts(project.competitorUrls);
 
   const s = status.s;
   const connected = s?.firecrawl.configured === true;
@@ -131,18 +143,6 @@ export function RealCompetitorProducts() {
   );
 }
 
-/** same rule as the server (api/_lib/product.ts normalizeUrl): no fragment, no tracking params */
-function cleanUrl(raw: string) {
-  try {
-    const u = new URL(raw);
-    u.hash = '';
-    for (const k of [...u.searchParams.keys()]) if (/^(utm_|fbclid$|gclid$|n_media$|n_query$)/i.test(k)) u.searchParams.delete(k);
-    return u.toString().replace(/\/$/, '');
-  } catch {
-    return raw;
-  }
-}
-const sameUrl = (a: string, b: string) => cleanUrl(a) === cleanUrl(b);
 
 function SetupGuide({ supabase }: { supabase: boolean }) {
   return (

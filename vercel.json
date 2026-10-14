@@ -3,9 +3,6 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "functions": {
-    "api/competitor-products.ts": { "maxDuration": 120 }
-  },
   "rewrites": [
     {
       "source": "/((?!assets/|api/|favicon\\.svg$).*)",
@@ -34,6 +31,12 @@
   ],
   "functions": {
     "api/blueprint.ts": {
+      "maxDuration": 300
+    },
+    "api/competitor-products.ts": {
+      "maxDuration": 120
+    },
+    "api/competitor-discovery.ts": {
       "maxDuration": 300
     }
   }

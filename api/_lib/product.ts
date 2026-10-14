@@ -31,6 +31,27 @@ export interface CompetitorProduct {
   ingredientsDropped: number;
   fieldStatus: { name: FieldStatus; brand: FieldStatus; price: FieldStatus; volume: FieldStatus; ingredients: FieldStatus };
   robotsUrl: string | null;
+  // ── added 2026-10-14 (auto discovery). Older rows have these as null / []. ──
+  /** price before discount as printed; null when the page shows a single price */
+  regularPriceValue: number | null;
+  regularPriceText: string | null;
+  /** discounted price as printed; null when no discount is shown */
+  salePriceValue: number | null;
+  salePriceText: string | null;
+  /** product type as printed on the page / breadcrumb */
+  category: string | null;
+  keyIngredients: string[];
+  /** selling-point phrases copied from the page */
+  usp: string[];
+  /** size in ml or g (metric value from the page, or fl oz / oz converted) */
+  sizeValue: number | null;
+  sizeUnit: 'ml' | 'g' | null;
+  sizeConverted: boolean;
+  /** price per 100 ml / 100 g in the page currency (computed from the stored price and size) */
+  unitPricePer100: number | null;
+  /** selling country estimated from the currency and domain, with the basis */
+  country: string | null;
+  countryBasis: string | null;
   sourceName: string;
   dataType: 'COLLECTED';
   markdownHash: string;
@@ -70,6 +91,36 @@ export function parseVolume(text: string): { value: number; unit: string } | nul
   return value > 0 && value < 100_000 ? { value, unit } : null;
 }
 
+/** Metric size first ("3.38 fl.oz / 100mL" → 100 ml); fl oz / oz converted only when no metric value is printed. */
+export function normalizeSize(text: string): { value: number; unit: 'ml' | 'g'; converted: boolean } | null {
+  const t = text.normalize('NFKC');
+  const metric = /(\d+(?:[.,]\d+)?)\s*(ml|g|l|kg)(?![a-z])/i.exec(t);
+  if (metric) {
+    const v = Number(metric[1].replace(',', '.'));
+    const u = metric[2].toLowerCase();
+    const value = u === 'l' ? v * 1000 : u === 'kg' ? v * 1000 : v;
+    return value > 0 && value < 100_000 ? { value: Math.round(value * 100) / 100, unit: u === 'g' || u === 'kg' ? 'g' : 'ml', converted: false } : null;
+  }
+  const floz = /(\d+(?:[.,]\d+)?)\s*fl\.?\s*oz/i.exec(t);
+  if (floz) return { value: Math.round(Number(floz[1].replace(',', '.')) * 29.5735 * 10) / 10, unit: 'ml', converted: true };
+  const oz = /(\d+(?:[.,]\d+)?)\s*oz(?![a-z])/i.exec(t);
+  if (oz) return { value: Math.round(Number(oz[1].replace(',', '.')) * 28.3495 * 10) / 10, unit: 'g', converted: true };
+  return null;
+}
+
+const COUNTRY_BY_CURRENCY: Record<string, string> = { KRW: 'KR', USD: 'US', JPY: 'JP', EUR: 'EU', GBP: 'GB', CNY: 'CN', SGD: 'SG', AUD: 'AU', CAD: 'CA' };
+const COUNTRY_BY_TLD: Record<string, string> = { kr: 'KR', jp: 'JP', uk: 'GB', cn: 'CN', sg: 'SG', au: 'AU', ca: 'CA', de: 'EU', fr: 'EU', it: 'EU', es: 'EU', nl: 'EU' };
+
+/** Estimate only: the page rarely states its selling country, so the basis is stored with it. */
+export function estimateCountry(host: string, currency: string | null): { country: string | null; basis: string | null } {
+  const tld = host.split('.').pop()?.toLowerCase() ?? '';
+  if (COUNTRY_BY_TLD[tld]) return { country: COUNTRY_BY_TLD[tld], basis: `도메인 .${tld}` };
+  const sub = host.split('.')[0].toLowerCase();
+  if (sub.length === 2 && COUNTRY_BY_TLD[sub]) return { country: COUNTRY_BY_TLD[sub], basis: `하위 도메인 ${sub}.` };
+  if (currency && COUNTRY_BY_CURRENCY[currency]) return { country: COUNTRY_BY_CURRENCY[currency], basis: `가격 통화 ${currency}` };
+  return { country: null, basis: null };
+}
+
 export function validateProduct(inputUrl: string, scrape: ScrapeResult, robotsUrl: string | null, collectedAt = new Date().toISOString()): CompetitorProduct {
   const md = scrape.markdown ?? '';
   const page = norm(md);
@@ -107,6 +158,20 @@ export function validateProduct(inputUrl: string, scrape: ScrapeResult, robotsUr
   const ingredientsDropped = listed.length - ingredients.length;
   const ingredientsStatus: FieldStatus = !listed.length ? 'NOT_FOUND' : ingredients.length ? 'FOUND' : 'DROPPED';
 
+  const priced = (v: unknown) => {
+    const t = str(v);
+    const p = t && onPage(t) ? parsePrice(t, str(j.currency) || price?.currency || '') : null;
+    return p ? { value: p.value, text: t } : null;
+  };
+  const regular = priced(j.regular_price_text);
+  const sale = regular ? priced(j.sale_price_text) : null;
+  const strList = (v: unknown, max: number, len: number) => (Array.isArray(v) ? [...new Set((v as unknown[]).map(str).filter((x) => x.length > 0 && x.length <= len))].filter(onPage).slice(0, max) : []);
+  const [category] = pick(j.category_text);
+  const size = volume && volumeText ? normalizeSize(volumeText) : null;
+  const effective = sale?.value ?? price?.value ?? null;
+  const host = new URL(inputUrl).hostname.replace(/^www\./, '');
+  const where = estimateCountry(host, price?.currency ?? null);
+
   return {
     id: productId(inputUrl),
     url: normalizeUrl(inputUrl),
@@ -126,6 +191,19 @@ export function validateProduct(inputUrl: string, scrape: ScrapeResult, robotsUr
     ingredientsDropped,
     fieldStatus: { name: nameStatus, brand: brandStatus, price: priceStatus, volume: volumeStatus, ingredients: ingredientsStatus },
     robotsUrl,
+    regularPriceValue: regular?.value ?? null,
+    regularPriceText: regular?.text ?? null,
+    salePriceValue: sale && regular && sale.value < regular.value ? sale.value : null,
+    salePriceText: sale && regular && sale.value < regular.value ? sale.text : null,
+    category,
+    keyIngredients: strList(j.key_ingredients, 10, 80),
+    usp: strList(j.usp, 5, 160),
+    sizeValue: size?.value ?? null,
+    sizeUnit: size?.unit ?? null,
+    sizeConverted: size?.converted ?? false,
+    unitPricePer100: effective !== null && size ? Math.round((effective / size.value) * 100 * 100) / 100 : null,
+    country: where.country,
+    countryBasis: where.basis,
     sourceName: 'Firecrawl',
     dataType: 'COLLECTED',
     markdownHash: hash(md, 32),

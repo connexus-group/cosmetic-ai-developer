@@ -163,6 +163,19 @@ interface ProductRow {
   data_type: 'COLLECTED';
   markdown_hash: string;
   markdown_chars: number;
+  regular_price_value: number | null;
+  regular_price_text: string | null;
+  sale_price_value: number | null;
+  sale_price_text: string | null;
+  category: string | null;
+  key_ingredients: string[] | null;
+  usp: string[] | null;
+  size_value: number | null;
+  size_unit: 'ml' | 'g' | null;
+  size_converted: boolean | null;
+  unit_price_per_100: number | null;
+  country: string | null;
+  country_basis: string | null;
 }
 
 const toProductRow = (p: CompetitorProduct): ProductRow => ({
@@ -188,7 +201,22 @@ const toProductRow = (p: CompetitorProduct): ProductRow => ({
   data_type: p.dataType,
   markdown_hash: p.markdownHash,
   markdown_chars: p.markdownChars,
+  regular_price_value: p.regularPriceValue,
+  regular_price_text: p.regularPriceText,
+  sale_price_value: p.salePriceValue,
+  sale_price_text: p.salePriceText,
+  category: p.category,
+  key_ingredients: p.keyIngredients,
+  usp: p.usp,
+  size_value: p.sizeValue,
+  size_unit: p.sizeUnit,
+  size_converted: p.sizeConverted,
+  unit_price_per_100: p.unitPricePer100,
+  country: p.country,
+  country_basis: p.countryBasis,
 });
+
+const numOrNull = (v: number | null | undefined) => (v === null || v === undefined ? null : Number(v));
 
 const fromProductRow = (r: ProductRow): CompetitorProduct => ({
   id: r.id,
@@ -213,11 +241,39 @@ const fromProductRow = (r: ProductRow): CompetitorProduct => ({
   dataType: 'COLLECTED',
   markdownHash: r.markdown_hash,
   markdownChars: r.markdown_chars,
+  regularPriceValue: numOrNull(r.regular_price_value),
+  regularPriceText: r.regular_price_text ?? null,
+  salePriceValue: numOrNull(r.sale_price_value),
+  salePriceText: r.sale_price_text ?? null,
+  category: r.category ?? null,
+  keyIngredients: r.key_ingredients ?? [],
+  usp: r.usp ?? [],
+  sizeValue: numOrNull(r.size_value),
+  sizeUnit: r.size_unit ?? null,
+  sizeConverted: r.size_converted ?? false,
+  unitPricePer100: numOrNull(r.unit_price_per_100),
+  country: r.country ?? null,
+  countryBasis: r.country_basis ?? null,
 });
 
-export async function saveProducts(list: CompetitorProduct[]) {
-  if (!list.length) return;
-  await rest('competitor_products?on_conflict=id', { method: 'POST', body: JSON.stringify(list.map(toProductRow)), prefer: 'resolution=merge-duplicates,return=minimal' });
+const NEW_PRODUCT_COLUMNS = ['regular_price_value', 'regular_price_text', 'sale_price_value', 'sale_price_text', 'category', 'key_ingredients', 'usp', 'size_value', 'size_unit', 'size_converted', 'unit_price_per_100', 'country', 'country_basis'] as const;
+
+/**
+ * Upsert products. If the discovery migration (20261014120000) has not been run yet, the new columns
+ * are missing: the row is saved with the original columns only and `legacy` is returned so the UI can say so.
+ */
+export async function saveProducts(list: CompetitorProduct[]): Promise<{ legacy: boolean }> {
+  if (!list.length) return { legacy: false };
+  const rows = list.map(toProductRow);
+  try {
+    await rest('competitor_products?on_conflict=id', { method: 'POST', body: JSON.stringify(rows), prefer: 'resolution=merge-duplicates,return=minimal' });
+    return { legacy: false };
+  } catch (e) {
+    if (!/PGRST204|column/i.test((e as Error).message)) throw e;
+    const legacy = rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !(NEW_PRODUCT_COLUMNS as readonly string[]).includes(k))));
+    await rest('competitor_products?on_conflict=id', { method: 'POST', body: JSON.stringify(legacy), prefer: 'resolution=merge-duplicates,return=minimal' });
+    return { legacy: true };
+  }
 }
 
 export async function loadProducts(ids: string[]): Promise<CompetitorProduct[]> {
@@ -239,4 +295,38 @@ export async function pingProducts(): Promise<{ ok: true; host: string } | { ok:
   } catch (e) {
     return { ok: false, host, error: (e as Error).message.slice(0, 200) };
   }
+}
+
+// ── Discovery: search cache, credit log, FX rates · schema: 20261014120000_competitor_discovery.sql ──
+
+export async function loadSearch(queryHash: string): Promise<{ created_at: string; results: unknown } | null> {
+  const rows = (await rest(`competitor_searches?query_hash=eq.${queryHash}&select=created_at,results&order=created_at.desc&limit=1`)) as { created_at: string; results: unknown }[] | null;
+  return rows?.[0] ?? null;
+}
+
+export async function saveSearch(row: { query_hash: string; query: string; location: string | null; attributes: unknown; results: unknown; credits: number }) {
+  await rest('competitor_searches', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(row) });
+}
+
+export async function logUsage(kind: 'search' | 'scrape', credits: number, detail: string) {
+  if (credits <= 0) return;
+  await rest('firecrawl_usage', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({ kind, credits, detail: detail.slice(0, 300) }) });
+}
+
+/** Credits this app recorded since the start of the current UTC month (Firecrawl's own dashboard is the authority). */
+export async function usageThisMonth(): Promise<{ total: number; search: number; scrape: number }> {
+  const now = new Date();
+  const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+  const rows = ((await rest(`firecrawl_usage?created_at=gte.${since}&select=kind,credits&limit=10000`)) as { kind: string; credits: number }[] | null) ?? [];
+  const sum = (k?: string) => rows.filter((r) => !k || r.kind === k).reduce((a, r) => a + Number(r.credits), 0);
+  return { total: sum(), search: sum('search'), scrape: sum('scrape') };
+}
+
+export async function loadFx(base: string, day: string): Promise<{ rate: number; rate_date: string } | null> {
+  const rows = (await rest(`fx_rates?base=eq.${base}&quote=eq.KRW&fetched_on=eq.${day}&select=rate,rate_date&limit=1`)) as { rate: number; rate_date: string }[] | null;
+  return rows?.[0] ? { rate: Number(rows[0].rate), rate_date: rows[0].rate_date } : null;
+}
+
+export async function saveFx(row: { base: string; quote: string; rate: number; rate_date: string; fetched_on: string; source: string }) {
+  await rest('fx_rates?on_conflict=base,quote,fetched_on', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal', body: JSON.stringify(row) });
 }
