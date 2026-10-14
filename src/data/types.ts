@@ -138,6 +138,8 @@ export interface Project {
   tests: Record<string, boolean>;
   checklist: Record<string, boolean>;
   claimCopy: string;
+  /** last real-data query (Naver DataLab) the user ran on Market / Consumer / Trend */
+  marketQuery?: { category: string; categoryCode: string; keywords: string[]; months: number };
   /** user edits on the brief */
   brief: Record<string, string>;
 }

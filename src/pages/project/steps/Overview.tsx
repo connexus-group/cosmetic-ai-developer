@@ -6,6 +6,7 @@ import { CLARIFY_QUESTIONS } from '@/data/mock';
 import { SPEC_FIELDS, SPEC_GROUPS } from '@/data/intakeSpec';
 import type { IntakeKey, SpecAnswer, SpecFieldId } from '@/data/types';
 import { CompactBlueprintEditor } from '@/components/blueprint/CompactBlueprintEditor';
+import { BlueprintEvidence } from '@/components/market/RealEvidence';
 import { useBlueprintUpdate } from '@/components/blueprint/useBlueprintUpdate';
 import { BlueprintCompact } from '@/components/intake/BlueprintSummary';
 import { IntakeGroup } from '@/components/intake/IntakeWizard';
@@ -204,6 +205,7 @@ export default function Overview() {
         <section>
           {bpNote && <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{bpNote}</div>}
           <CompactBlueprintEditor bp={p.blueprint} onChange={(bp) => updateBlueprint(() => bp)} actions={{ busy: bpBusy, onRefresh: refreshBlueprint }} />
+          <BlueprintEvidence bp={p.blueprint} />
           <p className="mt-2 text-[11px] text-slate-400">점도·원료별 역할·용기 재질·상세 원가·국가별 규제·시험 같은 상세 항목은 Formula, Ingredients, Packaging, Cost, Regulation, Testing 단계에서 확인하고 수정할 수 있어요.</p>
         </section>
       )}
