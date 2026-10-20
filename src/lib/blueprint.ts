@@ -163,7 +163,7 @@ function demoCandidates(key: string, idea: string, intake: Intake, spec: Spec, c
     return [{ value, reason: '아이디어 문장에 직접 적은 조건입니다.', origin: 'USER_PROVIDED' }];
   }
   if (key === 'lowIrritation' && /저자극/.test(idea))
-    return [{ value: '저자극 설계 (무향·자극 우려 원료 최소화, 피부 자극 시험 진행 희망)', reason: '아이디어 문장에 "저자극"을 직접 적었습니다.', origin: 'USER_PROVIDED' }];
+    return [{ value: '저자극 설계 (무향, 자극 우려 원료 최소화, 피부 자극 시험 진행)', reason: '아이디어 문장에 "저자극"을 직접 적었습니다.', origin: 'USER_PROVIDED' }];
 
   // 2. items mapped to the detailed intake reuse its demo rules, then the other choices as alternatives
   const fromSpec: Candidate[] = [];
@@ -188,28 +188,28 @@ function demoCandidates(key: string, idea: string, intake: Intake, spec: Spec, c
         return markets.length ? markets.map((m) => ({ value: marketLabel(m), reason: m === markets[0] ? '판매 국가 중 처음 언급한 국가를 우선 출시로 가정했습니다.' : '다른 판매 국가 후보입니다.' })) : [];
       case 'concept':
         return [
-          { value: `${ages} ${sensitive ? '민감 피부도 ' : ''}매일 부담 없이 쓰는 ${benefits.slice(0, 2).join('·') || '데일리'} ${productType}. ${ing('hero')[0] ?? '핵심 원료'} 중심의 집중 처방으로 ${val('concerns') ? splitList(val('concerns')).slice(0, 2).join('·') + ' 고민을' : '피부 고민을'} 꾸준히 관리하는 제품입니다.`, reason: '타깃·효능·제품 유형·대표 원료를 컨셉 문장으로 묶었습니다.' },
+          { value: `${ages} ${sensitive ? '민감 피부 ' : ''}타깃 데일리 ${benefits.slice(0, 2).join('·') || '보습'} ${productType}. ${ing('hero')[0] ?? '핵심 원료'} 중심 집중 처방.`, reason: '타깃·효능·제품 유형·대표 원료를 컨셉 문장으로 묶었습니다.' },
           { value: `${benefits[0] ?? '핵심'} 효능에 집중한 고농축 ${productType}`, reason: '효능 집중형 컨셉 후보입니다.' },
           { value: `가볍게 바르는 ${benefits[0] ?? '데일리'} 루틴 ${productType}`, reason: '사용감 중심 컨셉 후보입니다.' },
         ];
       case 'differentiation':
         return [
-          { value: `${sensitive ? '저자극 설계와 ' : ''}${ing('hero')[0] ?? '핵심 원료'} 중심의 단순한 처방. 효능 원료 수를 늘리기보다 핵심 원료에 집중하고${sensitive ? ', 향료와 자극 우려 원료를 빼서 민감 피부도 매일 쓸 수 있게' : ', 가벼운 사용감으로 매일 손이 가게'} 만듭니다.`, reason: '효능 원료와 자극 우려를 함께 다룬 차별화 후보입니다.' },
-          { value: '흡수가 빠른 가벼운 제형으로 레이어링 부담을 줄임', reason: '사용감 중심 차별화 후보입니다.' },
+          { value: `${ing('hero')[0] ?? '핵심 원료'} 중심 단순 처방${sensitive ? ', 향료·자극 우려 원료 배제' : ', 가벼운 사용감'}.`, reason: '효능 원료와 자극 우려를 함께 다룬 차별화 후보입니다.' },
+          { value: '빠른 흡수의 가벼운 제형으로 레이어링 부담 최소화.', reason: '사용감 중심 차별화 후보입니다.' },
         ];
       case 'usp':
         return [
-          { value: `${benefits[0] ?? '피부'} 고민을 ${sensitive ? '자극 걱정 없이 ' : ''}매일 관리하는 ${productType}. 바르는 순간 ${val('finish') ? splitList(val('finish'))[0] : '촉촉'}하게 마무리되고, 꾸준히 쓸수록 ${benefits.slice(0, 2).join('·') || '피부결'} 변화를 기대할 수 있는 제품`, reason: '핵심 효능과 타깃 니즈를 한 줄로 정리했습니다. 효능 표현은 실증 자료 확인이 필요합니다.' },
-          { value: `${ing('hero')[0] ?? '핵심 원료'}로 완성하는 ${benefits[0] ?? '데일리'} 케어`, reason: '원료 중심 USP 후보입니다.' },
+          { value: `${sensitive ? '자극 걱정 없는 ' : ''}매일 ${benefits.slice(0, 2).join('·') || '피부'} 케어.`, reason: '핵심 효능과 타깃 니즈를 한 줄로 정리했습니다. 효능 표현은 실증 자료 확인이 필요합니다.' },
+          { value: `${ing('hero')[0] ?? '핵심 원료'}로 완성하는 ${benefits[0] ?? '데일리'} 케어.`, reason: '원료 중심 USP 후보입니다.' },
         ];
       case 'motivation':
-        return [{ value: `${benefits[0] ?? '피부'} 변화를 체감하고 싶지만 ${sensitive ? '자극은 피하고 싶어서' : '복잡한 루틴은 싫어서'}. ${ages} 소비자는 ${sensitive ? '새 제품을 쓸 때 트러블이 생길까 걱정하는 경우가 많아, 성분이 단순하고 자극 시험을 거친 제품에 끌릴 것으로 보입니다.' : '여러 제품을 겹쳐 바르기보다 한 제품으로 효과를 보고 싶어 할 것으로 보입니다.'}`, reason: '타깃과 효능에서 추정한 구매 동기입니다. 실제 소비자 데이터로 확인이 필요합니다.' }];
+        return [{ value: `${benefits[0] ?? '피부'} 개선은 원하나 ${sensitive ? '자극·트러블 우려가 큼' : '복잡한 루틴은 원치 않음'}.`, reason: '타깃과 효능에서 추정한 구매 동기입니다. 실제 소비자 데이터로 확인이 필요합니다.' }];
       case 'needs':
-        return [{ value: `${benefits.join('·') || '보습'} 효과를 눈에 보이게 느끼고 싶고, ${sensitive ? '자극 없이 매일 쓸 수 있으며, ' : ''}끈적임 없이 다음 단계 제품이나 메이크업이 잘 올라가는 사용감을 원합니다.`, reason: '효능·피부 타입에서 추정한 니즈입니다.' }];
+        return [{ value: `${benefits.join('·') || '보습'} 효과 체감, ${sensitive ? '낮은 자극, ' : ''}끈적임 없는 마무리.`, reason: '효능·피부 타입에서 추정한 니즈입니다.' }];
       case 'sensory':
         return [
-          { value: `${val('textureType') || '가벼운'} 제형이 피부에 부드럽게 퍼지며 ${val('absorption') === '느림' ? '천천히' : '빠르게'} 흡수되고, ${val('finish') ? splitList(val('finish')).join('·') : '촉촉한'} 마무리감을 남깁니다. 바른 뒤에도 ${/없/.test(val('stickiness')) || /안 함/.test(val('stickiness')) ? '끈적임이 거의 없어' : '부담이 적어'} 다음 단계 제품을 바로 덧바를 수 있습니다.`, reason: '제형·흡수·끈적임·마무리감 항목과 맞춘 설명입니다.' },
-          { value: '첫 터치는 촉촉하고 마무리는 끈적임 없이 정돈됨', reason: '다른 사용감 표현 후보입니다.' },
+          { value: `${val('textureType') || '가벼운'} 제형, ${val('absorption') === '느림' ? '천천히' : '빠르게'} 흡수 후 ${val('finish') ? splitList(val('finish')).join('·') : '촉촉한'} 마무리.`, reason: '제형·흡수·마무리감 항목과 맞춘 설명입니다.' },
+          { value: '첫 터치 촉촉, 마무리는 끈적임 없이 정돈.', reason: '다른 사용감 표현 후보입니다.' },
         ];
       case 'hero': {
         const h = ing('hero');
@@ -230,14 +230,14 @@ function demoCandidates(key: string, idea: string, intake: Intake, spec: Spec, c
           ...(overseas.length ? [{ value: '판매 국가별 사용 제한 원료 (확인 필요)', reason: '판매 국가 규제 확인 후 정합니다.' }] : []),
         ];
       case 'lowIrritation':
-        return [{ value: sensitive ? '무향·저자극 원료 위주, 피부 자극 시험 진행 희망' : '일반 처방 기준, 자극 우려 원료 최소화', reason: sensitive ? '민감·저자극 조건에서 정한 방향입니다.' : '자극 관련 언급이 없어 기본 방향으로 두었습니다.' }];
+        return [{ value: sensitive ? '무향, 저자극 원료 위주 처방, 피부 자극 시험 진행' : '일반 처방, 자극 우려 원료 최소화', reason: sensitive ? '민감·저자극 조건에서 정한 방향입니다.' : '자극 관련 언급이 없어 기본 방향으로 두었습니다.' }];
       case 'rationale':
-        return [{ value: `${benefits.join('·') || '보습'} 효능에 자주 쓰이는 원료를 중심에 두고, ${sensitive ? '민감 피부 타깃을 고려해 자극 우려가 있는 원료(고농도 레티노이드, 향료 등)는 후보에서 뺐습니다' : '사용감을 해치지 않는 원료 조합을 우선했습니다'}. 보조 원료는 보습과 제형 안정성을 위해 넣었습니다.`, reason: '원료 후보를 고른 기준입니다.' }];
+        return [{ value: `${benefits.join('·') || '보습'} 효능 원료 중심${sensitive ? ', 자극 우려 원료(고농도 레티노이드·향료) 배제' : ', 사용감 저해 원료 최소화'}.`, reason: '원료 후보를 고른 기준입니다.' }];
       case 'compatibility':
-        return [{ value: `${val('hero') || '대표 원료'}의 ${val('textureType') || '제형'} 내 안정성, 권장 함량, pH 범위를 제조사와 확인`, reason: '원료와 제형 조합은 실제 처방 테스트가 필요합니다.' }];
+        return [{ value: `${val('hero') || '대표 원료'}의 ${val('textureType') || '제형'} 내 안정성·권장 함량·pH 범위 제조사 확인 필요`, reason: '원료와 제형 조합은 실제 처방 테스트가 필요합니다.' }];
       case 'material':
         return [
-          { value: val('container') === '에어리스' ? 'PP 에어리스 용기' : val('container') === '스포이드' ? '유리 병 + 스포이드' : 'PETG 또는 PP', reason: '권장 패키지와 맞는 일반적인 재질 후보입니다.' },
+          { value: val('container') === '에어리스' ? 'PP' : val('container') === '스포이드' ? '유리' : 'PETG 또는 PP', reason: '권장 패키지와 맞는 일반적인 재질 후보입니다.' },
           { value: '재활용 PP (친환경 옵션)', reason: '친환경 재질 후보입니다.' },
         ];
       case 'positioning':
@@ -282,135 +282,132 @@ function demoEntry(key: string, cands: Candidate[], avoid: string[] = []): Bluep
 // Longer explanation for every item (Demo Mode). Built from the values decided so far; never states a cost,
 // regulation or test result as confirmed.
 const TEXTURE_NOTE: Record<string, string> = {
-  워터리: '물처럼 가볍게 퍼지고 다른 제품과 레이어링하기 쉽습니다',
-  밀키: '로션처럼 부드럽게 퍼지면서 보습감과 가벼움의 균형을 맞추기 좋습니다',
-  젤: '산뜻하고 시원한 사용감이라 지성·복합성 피부가 선호하는 편입니다',
-  크림: '피부 위에 보습막을 남겨 건조한 피부에 잘 맞습니다',
-  밤: '고체에 가까운 질감이라 부분 집중 보습에 적합합니다',
-  오일: '흡수 후 윤기를 남기고 건조한 피부의 유분을 보충합니다',
-  캡슐: '눈에 띄는 차별화가 되지만 캡슐 안정성과 분산 확인이 더 필요합니다',
+  워터리: '가벼운 발림, 레이어링 용이',
+  밀키: '보습감과 가벼움의 균형',
+  젤: '산뜻한 쿨링감, 지성·복합성 선호',
+  크림: '보습막 형성, 건성 피부 적합',
+  밤: '고체 질감, 부분 집중 보습',
+  오일: '흡수 후 윤기, 유분 보충',
+  캡슐: '시각적 차별화, 캡슐 안정성 확인 필요',
 };
 const CONTAINER_NOTE: Record<string, string> = {
-  에어리스: '공기 접촉을 줄여 산화에 민감한 효능 원료를 보호하는 데 유리하고, 끝까지 덜어 쓰기 좋습니다.',
-  스포이드: '앰플·세럼에 익숙한 형태로 적정량을 덜기 쉽지만, 공기와 손 접촉이 있어 방부 설계를 함께 봐야 합니다.',
-  펌프: '사용이 편하고 위생적이지만 제형 점도에 맞는 펌프 사양을 골라야 토출이 안정적입니다.',
-  튜브: '휴대성이 좋고 단가 부담이 적은 편이며, 크림·젤 제형에 잘 맞습니다.',
-  단지: '크림·밤 제형에 어울리지만 위생을 위해 스패출러 동봉을 검토합니다.',
-  스프레이: '미스트 형태에 적합하며 분사량과 분사 입자 크기 테스트가 필요합니다.',
+  에어리스: '효능 원료 산화 방지, 잔량 최소화 목적.',
+  스포이드: '정량 사용 용이. 공기·손 접촉으로 방부 설계 함께 검토.',
+  펌프: '사용 편의·위생. 제형 점도에 맞는 펌프 사양 선정.',
+  튜브: '휴대성·단가 유리.',
+  단지: '크림·밤 제형용. 스패출러 동봉 검토.',
+  스프레이: '분사량·입자 크기 테스트 필요.',
 };
 
+/** A short planning note for every item (Demo Mode), written the way a brand planner notes a plan. */
 function demoDetail(key: string, entries: Record<string, BlueprintEntry>): string {
   const e = entries[key];
-  const f = blueprintField(key)!;
-  if (isUndecided(e)) return `아이디어에 근거가 부족해 아직 정하지 않았어요. "${f.label}"은(는) 직접 입력하거나 아이디어 문장에 조건을 더 적으면 채워집니다.`;
+  if (isUndecided(e)) return '근거 부족으로 미정. 직접 입력 필요.';
   const v = e.value;
   const val = (k: string, d = '') => (isUndecided(entries[k]) ? d : entries[k].value);
   const ages = splitList(val('ages', '30대')).join('·');
-  const gender = val('gender');
   const benefits = splitList(val('benefits', '보습'));
   const b0 = benefits[0];
   const productType = val('productType', '앰플/세럼');
-  const hero = splitList(val('hero', '대표 원료'))[0];
   const sensitive = /민감|저자극/.test(val('skinTypes') + val('lowIrritation') + val('concerns'));
   const marketList = marketCodes(val('markets')).map(marketLabel);
   const overseas = marketCodes(val('markets')).some((m) => m !== 'KR');
   const regulated = benefits.some((b) => ['탄력', '주름', '미백'].includes(b));
-  const verifyTail = '일반 지식을 바탕으로 정리한 내용이라, 판매 국가의 공식 규제 자료로 확인이 필요합니다.';
   switch (key) {
     case 'category':
-      return `${productType}을(를) 포함한 ${v} 카테고리로 기획합니다. 카테고리에 따라 제조사의 생산 라인, 필요한 안정성 시험, 판매 채널의 진열 위치가 달라지므로 가장 먼저 확정해 두는 것이 좋습니다.`;
+      return '생산 라인·안정성 시험·채널 진열 기준이 되므로 우선 확정.';
     case 'productType':
-      return `${v} 형태는 ${b0} 효능 원료를 집중해서 담기 좋고, ${ages} 소비자가 지금 쓰는 스킨케어 루틴에 한 단계로 더하기 부담이 적습니다. 1회 사용량과 사용 순서(예: 토너 다음 단계)를 정해 두면 용량과 용기를 고르기가 쉬워집니다.`;
+      return `${b0} 원료 집중 배합. 1회 사용량·사용 순서 확정 후 용량·용기 결정.`;
     case 'purpose':
-      return `${v} 기준으로 일정과 예산을 잡습니다. ${v === '신규 출시' ? '신규 출시는 처방 개발부터 시제품 평가, 안정성 시험까지 모든 과정을 거치므로 리뉴얼보다 기간이 길어질 수 있습니다(제조사 확인 필요).' : '기존 제품 대비 무엇을 바꾸는지(처방, 용기, 효능 표현)를 먼저 정리하면 제조사와 범위를 맞추기 쉽습니다.'}`;
+      return v === '신규 출시' ? '처방 개발부터 안정성 시험까지 전 과정 진행. 일정 제조사 확인 필요.' : '변경 범위(처방·용기·표현) 먼저 정리.';
     case 'benefits':
-      return `핵심 효능은 ${benefits.join(', ')}입니다. 효능을 2~3개로 좁혀야 원료 배합과 광고 문구가 선명해집니다. ${regulated ? '주름·미백·탄력 관련 표현은 기능성화장품 보고·심사 대상인지 확인이 필요합니다.' : '일반 화장품 범위의 효능 표현으로 운영할 수 있는지 함께 확인합니다.'}`;
+      return regulated ? '효능 2~3개로 압축. 주름·미백·탄력 표현은 기능성 보고·심사 대상 여부 확인 필요.' : '효능 2~3개로 압축. 일반 화장품 범위 표현으로 운영.';
     case 'concept':
-      return `제품명, 패키지 문구, 상세페이지 첫 문장이 모두 이 컨셉에서 나오도록 맞추면 메시지가 흔들리지 않습니다. ${ages} ${gender && gender !== '성별 무관' ? gender + ' ' : ''}소비자가 매장이나 상세페이지에서 몇 초 안에 이해할 수 있는지를 기준으로 다듬어 주세요.`;
+      return '제품명·패키지 문구·상세페이지 첫 문장의 기준 문장.';
     case 'differentiation':
-      return `${hero} 중심 처방에 ${sensitive ? '자극 우려 원료를 줄인 설계를' : '가벼운 사용감을'} 더하는 방향으로 차별화합니다. 실제 경쟁 제품과 얼마나 다른지는 Competitors 단계에서 확인이 필요하고, 차별화 근거가 되는 사용감 평가나 자극 시험은 처방 단계에서 함께 계획합니다.`;
+      return '경쟁 제품 대비 차이는 Competitors 단계에서 확인. 근거용 사용감 평가·자극 시험 계획.';
     case 'usp':
-      return `상세페이지와 패키지 전면 카피의 기준이 되는 한 줄입니다. "${b0}" 효능 표현은 실증 자료가 있어야 광고에 쓸 수 있으므로, 시험 계획과 함께 표현 수위를 정합니다.`;
+      return `패키지 전면·상세페이지 메인 카피 기준. "${b0}" 표현은 실증 자료 확인 필요.`;
     case 'keywords':
-      return `검색어, SNS 해시태그, 상세페이지 태그에 공통으로 쓸 후보입니다. 실제 검색량과 경쟁 정도는 Trend 단계의 데이터로 확인한 뒤 우선순위를 정합니다.`;
+      return '검색·SNS·상세페이지 공통 태그. 검색량은 Trend 단계 데이터로 우선순위 확정.';
     case 'ages':
-      return `${ages} 소비자를 1차 타깃으로 잡습니다. 연령대에 따라 좋아하는 사용감, 가격에 대한 민감도, 정보를 얻는 채널이 달라지므로 판매가·채널 항목과 함께 맞춥니다.`;
+      return `${ages} 1차 타깃. 사용감·가격대·채널을 이 연령 기준으로 설정.`;
     case 'gender':
-      return v === '성별 무관' ? '성별 구분 없이 쓰는 제품으로 기획합니다. 패키지 색감과 향, 광고 모델 선택에서 특정 성별에 치우치지 않도록 톤을 맞춥니다.' : `${v} 소비자를 기준으로 패키지 톤, 향, 광고 문구를 정합니다. 다른 성별로의 확장은 출시 후 반응을 보고 검토하는 것이 일반적입니다.`;
+      return v === '성별 무관' ? '패키지 색감·향·모델을 성별 중립 톤으로 설정.' : `${v} 기준 패키지 톤·향·카피 설정.`;
     case 'skinTypes':
-      return `${v} 피부를 기준으로 처방 방향을 잡습니다. ${sensitive ? '민감성 피부가 포함되면 향료, 에센셜 오일, 고농도 산을 줄이고 피부 자극 시험을 계획하는 것이 일반적입니다.' : '피부 타입별로 사용감 차이가 크지 않도록 유분감과 보습력을 조절합니다.'}`;
+      return sensitive ? '향료·에센셜 오일·고농도 산 배제, 피부 자극 시험 진행.' : '피부 타입별 사용감 편차 최소화(유분감·보습력 조절).';
     case 'concerns':
-      return `${v}을(를) 이 제품이 해결할 피부 고민으로 정했습니다. 고민마다 효능 원료와 광고 표현이 연결되므로, 상세페이지의 "이런 분께 추천" 문구와 원료 선택의 기준으로 씁니다.`;
+      return '효능 원료 선정과 상세페이지 "추천 대상" 문구의 기준.';
     case 'usage':
-      return `${v} 사용을 기준으로 흡수 속도와 메이크업 전 밀림 여부를 확인합니다. 아침 사용이 포함되면 햇빛에 민감한 원료(예: 레티노이드류)는 함량과 사용 안내를 따로 검토합니다.`;
+      return '흡수 속도·메이크업 밀림 확인. 아침 사용 시 광민감 원료 사용 여부 검토.';
     case 'motivation':
-      return `${ages} 타깃이 이 제품을 사는 이유를 가정한 것입니다. Consumer 단계의 리뷰·소비자 데이터로 이 가설이 맞는지 확인하고, 맞다면 광고 첫 문장에 반영합니다.`;
+      return '구매 동기 가설. Consumer 단계 리뷰·소비자 데이터로 검증 후 광고 카피 반영.';
     case 'needs':
-      return `제품이 반드시 충족해야 할 조건입니다. 제조사에 처방 개발의 필수 요구사항으로 전달하고, 시제품을 평가할 때 체크리스트로 씁니다.`;
+      return '처방 필수 요구사항으로 제조사 전달, 시제품 평가 체크리스트로 사용.';
     case 'textureType':
-      return `${v} 제형은 ${TEXTURE_NOTE[v] ?? '원하는 사용감에 맞춰 조정할 수 있습니다'}. 제조사에는 원하는 점도 범위와 참고하고 싶은 질감을 함께 전달하면 시제품 수정 횟수를 줄일 수 있습니다.`;
+      return `${TEXTURE_NOTE[v] ?? '목표 사용감 기준'}. 목표 점도·참고 질감 제조사 전달.`;
     case 'viscosity':
-      return `점도는 "${v}" 수준을 목표로 합니다. 점도는 용기(스포이드, 펌프, 에어리스)의 토출과 직접 연결되므로 용기 후보를 정한 뒤 실제 토출 테스트로 확인합니다.`;
+      return '용기 토출과 직결. 용기 확정 후 토출 테스트로 확인.';
     case 'absorption':
-      return `흡수 속도는 "${v}"을(를) 목표로 합니다. 시제품 평가 때 바른 직후, 1분 후, 5분 후의 잔여감을 비교하면 기준을 객관적으로 맞출 수 있습니다.`;
+      return '시제품 평가 시 도포 직후·1분·5분 후 잔여감 비교.';
     case 'stickiness':
-      return `끈적임은 "${v}" 수준으로 정했습니다. 글리세린이나 히알루론산 같은 보습 원료가 많을수록 끈적임이 커지므로, 보습력과 사용감 사이의 균형을 제조사와 조율합니다.`;
+      return '보습 원료 함량과 상충. 보습력·사용감 균형 제조사와 조율.';
     case 'finish':
-      return `마무리감은 ${v}을(를) 목표로 합니다. 같은 제형이라도 오일·실리콘 배합에 따라 마무리감이 달라지므로, 시제품 단계에서 2~3가지 버전을 비교해 보는 것이 좋습니다.`;
+      return '오일·실리콘 배합으로 조정. 시제품 2~3종 비교 후 확정.';
     case 'scent':
-      return v === '무향' ? '향료를 넣지 않는 방향입니다. 원료 고유의 냄새가 날 수 있으므로 "무향"과 "무향료" 표기 차이를 확인하고, 원료 냄새를 줄이는 방법을 제조사와 협의합니다.' : `향은 "${v}" 방향입니다. 향료 속 알레르기 유발 성분은 표시 대상이 될 수 있어 판매 국가별 표시 기준 확인이 필요합니다.`;
+      return v === '무향' ? '원료 고유 냄새 저감 방안 협의. "무향/무향료" 표기 기준 확인 필요.' : '알레르기 유발 향료 성분 표시 기준 국가별 확인 필요.';
     case 'appearance':
-      return `제품 색상은 ${v}을(를) 목표로 합니다. 원료에 따라 시간이 지나며 색이 변할 수 있으므로 안정성 시험에서 색 변화도 함께 확인합니다.`;
+      return '원료에 따른 변색 가능성. 안정성 시험에서 색 변화 확인.';
     case 'sensory':
-      return '이 문장을 시제품 평가 기준으로 쓰고, 상세페이지의 사용감 설명에도 그대로 활용할 수 있습니다. 평가할 때는 여러 명이 같은 조건에서 써 보고 표현이 맞는지 확인하는 것이 좋습니다.';
+      return '시제품 평가 기준 문장. 상세페이지 사용감 설명에 활용.';
     case 'hero':
-      return `${v}을(를) 대표 원료 후보로 제안합니다. 대표 원료는 제품명과 패키지에 드러나는 핵심 메시지가 되므로, 원료사에 권장 함량, 단가, 효능 근거 자료를 요청해 비교한 뒤 확정합니다(확인 필요).`;
+      return '제품명·패키지 노출 원료. 권장 함량·단가·효능 근거 원료사 확인 필요.';
     case 'actives':
-      return `${v}을(를) 효능 원료 후보로 제안합니다. 원료끼리 적정 pH와 안정성이 맞는지, 판매 국가에서 사용 제한이 있는지 확인이 필요합니다.`;
+      return '원료 간 pH·안정성 적합성, 판매 국가 사용 제한 확인 필요.';
     case 'supporting':
-      return `${v}은(는) 보습과 피부 컨디셔닝, 제형 안정성을 돕는 보조 원료 후보입니다. 전성분 앞쪽에 오는 경우가 많아 사용감에 큰 영향을 주므로 시제품에서 함께 조정합니다.`;
+      return '보습·컨디셔닝·제형 안정 목적. 시제품에서 사용감과 함께 조정.';
     case 'exclude':
-      return `${v}을(를) 빼는 방향을 제안합니다. 빼는 원료는 "무첨가" 표기로 활용할 수 있지만, 표시·광고 기준에 맞는 표현인지 확인이 필요합니다.`;
+      return '"무첨가" 표기 활용 여부 검토. 표시·광고 기준 확인 필요.';
     case 'functional':
-      return /없음/.test(v) ? '기능성 심사 없이 일반 화장품으로 출시하는 방향입니다. 이 경우 주름 개선이나 미백 같은 기능성 효능 표현은 광고에 쓸 수 없어 문구를 조정해야 합니다.' : `${v} 기능성 방향입니다. 식약처 기능성화장품 보고·심사 대상인지, 고시 원료와 함량 기준을 맞출 수 있는지 확인이 필요하고, 일정에 심사 기간을 반영해야 합니다.`;
+      return /없음/.test(v) ? '일반 화장품으로 출시. 기능성 효능 표현은 광고에 사용 불가.' : '기능성 보고·심사 대상 여부, 고시 원료·함량 기준 확인 필요. 심사 기간 일정 반영.';
     case 'lowIrritation':
-      return '저자극을 내세우려면 피부 자극 시험 같은 근거 자료가 필요하므로 Testing 단계 계획에 포함합니다. 무향, 알코올 최소화, 자극 우려 원료 제외 같은 기준을 제조사와 처방 조건으로 정리합니다.';
+      return '저자극 표방 시 피부 자극 시험 자료 필요. Testing 단계 계획에 포함.';
     case 'rationale':
-      return '원료 선택 근거는 제조사 미팅에서 처방 의도를 설명하는 자료가 되고, 나중에 원료를 바꿀 때 판단 기준이 됩니다.';
+      return '제조사 미팅 시 처방 의도 설명 자료, 원료 변경 시 판단 기준.';
     case 'compatibility':
-      return '원료와 제형의 조합은 실제 처방 테스트로만 확인할 수 있어 확정값이 아닙니다. 시제품 단계에서 분리, 변색, 냄새 변화가 없는지 함께 확인합니다.';
+      return '처방 테스트로만 확인 가능. 시제품 단계에서 분리·변색·냄새 변화 확인.';
     case 'targetPrice':
-      return `목표 판매가를 기준으로 원가, 용량, 채널 수수료를 거꾸로 계산합니다. ${val('channels') ? `${val('channels')} 채널의 수수료와 할인 행사 비율에 따라 남는 금액이 크게 달라지므로` : '판매 채널의 수수료와 할인 행사 비율에 따라 남는 금액이 달라지므로'} Cost 단계에서 함께 계산합니다.`;
+      return '원가·용량·채널 수수료 역산 기준. 행사 할인율 포함해 Cost 단계에서 계산.';
     case 'targetCost':
-      return '판매가에서 거꾸로 계산한 추정치일 뿐 실제 견적이 아닙니다. 원료비, 용기·부자재, 충전·포장비, 초도 수량에 따라 크게 달라지므로 제조사 견적으로 확인이 필요합니다.';
+      return '판매가 역산 추정치, 실제 견적 아님. 원료·용기·충전·포장비 제조사 견적 확인 필요.';
     case 'size':
-      return `${v} 용량을 제안합니다. ${productType}의 1회 사용량과 다 쓰는 데 걸리는 기간을 고려하고, 같은 가격대 제품과 ml당 가격을 비교해 확정합니다.`;
+      return `${productType} 1회 사용량·사용 기간 기준. 동일 가격대 ml당 가격 비교 후 확정.`;
     case 'firstRun':
-      return `초도 ${v} 생산을 가정했습니다. 실제 최소 주문 수량(MOQ)은 제조사와 용기 공급사마다 다르고, 수량이 적을수록 개당 원가가 올라가므로 견적 비교가 필요합니다(확인 필요).`;
+      return '가정 수량. 제조사·용기사 MOQ와 수량별 개당 원가 견적 확인 필요.';
     case 'container':
-      return `${v} 용기를 제안합니다. ${CONTAINER_NOTE[v] ?? ''} 내용물과 용기가 맞는지(변형, 원료 흡착, 누액)는 용기 적합성 시험으로 확인합니다.`;
+      return `${CONTAINER_NOTE[v] ?? ''} 용기 적합성 시험(변형·흡착·누액) 진행.`.trim();
     case 'material':
-      return `${v} 재질을 제안합니다. 재질은 내용물 적합성, 차광, 재활용 표시, 단가에 영향을 주므로 용기 공급사 샘플로 확인합니다(확인 필요).`;
+      return '내용물 적합성·차광·재활용 표시·단가 기준. 용기사 샘플로 확인 필요.';
     case 'channels':
-      return `${v} 채널을 우선 검토합니다. 채널마다 입점 조건, 수수료, 잘 팔리는 가격대와 용량이 달라서 판매가와 용량을 정할 때 함께 봐야 합니다.`;
+      return '채널별 입점 조건·수수료·주력 가격대 확인 후 판매가·용량과 함께 확정.';
     case 'positioning':
-      return '포지셔닝은 가격, 패키지 디자인, 광고 톤을 한 방향으로 맞추는 기준입니다. 같은 가격대 경쟁 제품의 실제 이미지는 Competitors 단계에서 확인합니다.';
+      return '가격·패키지 디자인·광고 톤 정렬 기준.';
     case 'benchmark':
-      return '참고할 제품 유형을 정리한 것입니다. 실제 제품명, 가격, 전성분은 Competitors 단계에서 확인이 필요합니다.';
+      return '참고 제품 유형. 실제 제품명·가격·전성분은 Competitors 단계에서 확인.';
     case 'launchTiming':
-      return `${v} 출시를 목표로 합니다. 처방 개발, 안정성 시험, ${overseas ? '해외 등록 절차' : '기능성 심사 여부'}에 따라 일정이 달라지므로 Timeline 단계에서 거꾸로 계산해 확인합니다.`;
+      return `처방 개발·안정성 시험·${overseas ? '해외 등록' : '기능성 심사 여부'}에 따라 변동. Timeline 단계에서 역산.`;
     case 'markets':
-      return `${marketList.join(', ') || v} 판매를 목표로 합니다. 국가마다 금지·제한 원료, 기능성 분류, 라벨 표기, 등록 절차가 달라서 처방을 확정하기 전에 국가별 규제 확인이 필요합니다.${marketList.includes('중국') ? ' 중국은 사용 가능한 원료 목록과 등록·신고 절차를 먼저 확인하고 일정에 여유를 두는 것이 좋습니다.' : ''}`;
+      return `국가별 금지·제한 원료, 기능성 분류, 라벨, 등록 절차 확인 필요.${marketList.includes('중국') ? ' 중국은 원료 목록·등록 절차 우선 확인.' : ''}`;
     case 'priorityMarket':
-      return `${v}을(를) 첫 출시 국가로 가정했습니다. 첫 국가의 규제 기준에 맞춰 처방을 정하면 다른 국가로 넓힐 때 수정 범위를 줄일 수 있습니다.`;
+      return '첫 출시 국가 규제 기준으로 처방 확정, 이후 국가 확장.';
     case 'countryIngredients':
     case 'functionalClass':
     case 'claims':
     case 'procedures':
     case 'extraRegulatory':
-      return `${verifyTail} 확인 결과에 따라 원료, 효능 표현, 일정이 바뀔 수 있습니다.`;
+      return '공식 규제 자료로 확인 필요. 결과에 따라 원료·표현·일정 조정.';
     case 'tests':
-      return `${v}을(를) 권장합니다. 시험 항목, 기간, 비용은 시험기관과 판매 국가 요구사항에 따라 달라지므로 확인이 필요합니다.`;
+      return '시험 항목·기간·비용은 시험기관·판매 국가 요구사항 확인 필요.';
     default:
       return '';
   }
