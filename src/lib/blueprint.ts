@@ -36,6 +36,12 @@ export function marketCodes(v: string): string[] {
 }
 const marketsIn = (text: string) => Object.entries(MARKET_NAMES).filter(([, names]) => names.some((n) => (/^[a-z]+$/.test(n) ? new RegExp(`\\b${n}\\b`, 'i') : new RegExp(n)).test(text))).map(([c]) => c);
 
+/** "스킨케어 > 앰플/세럼" → { category: '스킨케어', type: '앰플/세럼' } */
+export function splitKind(v: string): { category: string; type: string } {
+  const [a, b] = v.split(/\s*>\s*/);
+  return b === undefined ? { category: '', type: a.trim() } : { category: a.trim(), type: b.trim() };
+}
+
 // ── API (server side AI) ────────────────────────────────────────────────────
 
 export interface AiStatus {
@@ -145,13 +151,21 @@ function ruleSpec(idea: string, intake: Intake): Spec {
 }
 
 function demoCandidates(key: string, idea: string, intake: Intake, spec: Spec, current: Record<string, BlueprintEntry>): Candidate[] {
+  const out = demoCandidatesRaw(key, idea, intake, spec, current);
+  if (key !== 'productType') return out;
+  // one item holds "카테고리 > 세부 유형"
+  const cat = spec.category?.value[0] || fieldById('category').demo({ idea, intake, spec }).value[0] || '스킨케어';
+  return out.map((c) => (c.value.includes('>') ? c : { ...c, value: `${cat} > ${c.value}` }));
+}
+
+function demoCandidatesRaw(key: string, idea: string, intake: Intake, spec: Spec, current: Record<string, BlueprintEntry>): Candidate[] {
   const f = blueprintField(key)!;
   const val = (k: string) => current[k]?.value ?? '';
   const benefits = splitList(val('benefits') || intake.benefit.value).filter((b) => b !== '안티에이징');
   const sensitive = /민감|저자극|진정/.test(idea + val('skinTypes') + val('concerns'));
   const markets = marketCodes(val('markets'));
   const overseas = markets.filter((m) => m !== 'KR');
-  const productType = val('productType') || '앰플/세럼';
+  const productType = splitKind(val('productType')).type || '앰플/세럼';
   const ages = val('ages') || '30대';
   const ing = (kind: 'hero' | 'actives') => [...new Set(benefits.flatMap((b) => INGREDIENTS[b]?.[kind] ?? []))].filter((x) => !(sensitive && /레티/.test(x)));
   const stated = spec[f.spec ?? ('' as never)];
@@ -177,6 +191,22 @@ function demoCandidates(key: string, idea: string, intake: Intake, spec: Spec, c
 
   const cands: Candidate[] = (() => {
     switch (key) {
+      case 'exportSafe':
+        return [{ value: markets.length ? `${markets.map(marketLabel).join('·')} 공통 사용 가능 원료로만 구성. 국가별 금지·제한 원료 확인 필요.` : '수출 국가 확정 후 원료 사용 기준 확인 필요.', reason: '수출 희망 국가에서 문제없는 원료로만 구성하기 위한 조건입니다. 실제 사용 가능 여부는 공식 규제 자료로 확인해야 합니다.' }];
+      case 'marketingChannels': {
+        const young = /10대|20대/.test(ages);
+        return [
+          { value: young ? '인스타그램, 틱톡, 인플루언서 시딩' : sensitive ? '인스타그램, 체험단, 검색 광고' : '인스타그램, 유튜브, 체험단', reason: '타깃 연령과 제품 특성에서 정한 홍보 채널 후보입니다.' },
+          { value: '유튜브, 인플루언서 시딩, 검색 광고', reason: '다른 채널 조합 후보입니다.' },
+        ];
+      }
+      case 'launchPromotion': {
+        const ch = splitList(val('channels'))[0] ?? '자사몰';
+        return [
+          { value: `${ch} 런칭 기획전 진행, 체험단 리뷰 선확보 후 ${benefits[0] ?? '핵심'} 효능 중심 콘텐츠 집행.`, reason: '유통채널과 핵심 효능에서 정한 런칭 전략 후보입니다.' },
+          { value: '출시 첫 달 1+1 또는 미니 증정으로 첫 구매 유도, 리뷰 이벤트 병행.', reason: '다른 프로모션 후보입니다.' },
+        ];
+      }
       case 'keywords':
         return [
           { value: [...benefits.slice(0, 2), ...(sensitive ? ['저자극'] : []), productType.split('/')[0], ages].join(', '), reason: '효능·타깃·제품 유형에서 뽑은 키워드 후보입니다.' },
@@ -194,8 +224,8 @@ function demoCandidates(key: string, idea: string, intake: Intake, spec: Spec, c
         ];
       case 'differentiation':
         return [
-          { value: `${ing('hero')[0] ?? '핵심 원료'} 중심 단순 처방${sensitive ? ', 향료·자극 우려 원료 배제' : ', 가벼운 사용감'}.`, reason: '효능 원료와 자극 우려를 함께 다룬 차별화 후보입니다.' },
-          { value: '빠른 흡수의 가벼운 제형으로 레이어링 부담 최소화.', reason: '사용감 중심 차별화 후보입니다.' },
+          { value: `${ing('hero')[0] ?? '핵심 원료'} 중심 단순 처방${sensitive ? ', 향료·자극 우려 원료 배제' : ', 가벼운 사용감'}. ${sensitive ? '자극 걱정 없는 ' : ''}매일 ${benefits.slice(0, 2).join('·') || '피부'} 케어.`, reason: '차별점과 소비자에게 전달할 핵심 가치를 함께 정리했습니다.' },
+          { value: `빠른 흡수의 가벼운 제형으로 레이어링 부담 최소화. ${ing('hero')[0] ?? '핵심 원료'}로 완성하는 ${benefits[0] ?? '데일리'} 케어.`, reason: '사용감 중심 차별화 후보입니다.' },
         ];
       case 'usp':
         return [
@@ -302,13 +332,13 @@ const CONTAINER_NOTE: Record<string, string> = {
 /** A short planning note for every item (Demo Mode), written the way a brand planner notes a plan. */
 function demoDetail(key: string, entries: Record<string, BlueprintEntry>): string {
   const e = entries[key];
-  if (isUndecided(e)) return '근거 부족으로 미정. 직접 입력 필요.';
+  if (isUndecided(e)) return key === 'targetProduct' ? '유사하게 가고 싶은 제품명 직접 입력. 입력 시 제형·사용감 비교 기준으로 사용.' : '근거 부족으로 미정. 직접 입력 필요.';
   const v = e.value;
   const val = (k: string, d = '') => (isUndecided(entries[k]) ? d : entries[k].value);
   const ages = splitList(val('ages', '30대')).join('·');
   const benefits = splitList(val('benefits', '보습'));
   const b0 = benefits[0];
-  const productType = val('productType', '앰플/세럼');
+  const productType = splitKind(val('productType', '앰플/세럼')).type;
   const sensitive = /민감|저자극/.test(val('skinTypes') + val('lowIrritation') + val('concerns'));
   const marketList = marketCodes(val('markets')).map(marketLabel);
   const overseas = marketCodes(val('markets')).some((m) => m !== 'KR');
@@ -317,7 +347,7 @@ function demoDetail(key: string, entries: Record<string, BlueprintEntry>): strin
     case 'category':
       return '생산 라인·안정성 시험·채널 진열 기준이 되므로 우선 확정.';
     case 'productType':
-      return `${b0} 원료 집중 배합. 1회 사용량·사용 순서 확정 후 용량·용기 결정.`;
+      return `생산 라인·안정성 시험·채널 진열 기준. ${b0} 원료 집중 배합. 1회 사용량·사용 순서 확정 후 용량·용기 결정.`;
     case 'purpose':
       return v === '신규 출시' ? '처방 개발부터 안정성 시험까지 전 과정 진행. 일정 제조사 확인 필요.' : '변경 범위(처방·용기·표현) 먼저 정리.';
     case 'benefits':
@@ -325,7 +355,7 @@ function demoDetail(key: string, entries: Record<string, BlueprintEntry>): strin
     case 'concept':
       return '제품명·패키지 문구·상세페이지 첫 문장의 기준 문장.';
     case 'differentiation':
-      return '경쟁 제품 대비 차이는 Competitors 단계에서 확인. 근거용 사용감 평가·자극 시험 계획.';
+      return `패키지 전면·상세페이지 메인 카피 기준. 경쟁 제품 대비 차이는 Competitors 단계에서 확인, "${b0}" 표현은 실증 자료 확인 필요.`;
     case 'usp':
       return `패키지 전면·상세페이지 메인 카피 기준. "${b0}" 표현은 실증 자료 확인 필요.`;
     case 'keywords':
@@ -383,7 +413,7 @@ function demoDetail(key: string, entries: Record<string, BlueprintEntry>): strin
     case 'size':
       return `${productType} 1회 사용량·사용 기간 기준. 동일 가격대 ml당 가격 비교 후 확정.`;
     case 'firstRun':
-      return '가정 수량. 제조사·용기사 MOQ와 수량별 개당 원가 견적 확인 필요.';
+      return '희망 수량. 제조사·용기사 MOQ와 수량별 개당 원가 견적 확인 필요.';
     case 'container':
       return `${CONTAINER_NOTE[v] ?? ''} 용기 적합성 시험(변형·흡착·누액) 진행.`.trim();
     case 'material':
@@ -396,8 +426,16 @@ function demoDetail(key: string, entries: Record<string, BlueprintEntry>): strin
       return '참고 제품 유형. 실제 제품명·가격·전성분은 Competitors 단계에서 확인.';
     case 'launchTiming':
       return `처방 개발·안정성 시험·${overseas ? '해외 등록' : '기능성 심사 여부'}에 따라 변동. Timeline 단계에서 역산.`;
+    case 'exportSafe':
+      return '국가별 금지·제한 원료 목록과 대조 후 처방 확정. 공식 규제 자료로 확인 필요.';
+    case 'marketingChannels':
+      return '채널별 콘텐츠 형식·예산 배분은 런칭 3개월 전 확정.';
+    case 'launchPromotion':
+      return '할인율·증정 비용은 원가와 함께 Cost 단계에서 검토.';
+    case 'targetProduct':
+      return '제형·사용감 비교 기준 제품. 시제품 평가 시 함께 비교.';
     case 'markets':
-      return `국가별 금지·제한 원료, 기능성 분류, 라벨, 등록 절차 확인 필요.${marketList.includes('중국') ? ' 중국은 원료 목록·등록 절차 우선 확인.' : ''}`;
+      return `수출 희망 국가 기준으로 원료 구성. 국가별 금지·제한 원료, 기능성 분류, 라벨, 등록 절차 확인 필요.${marketList.includes('중국') ? ' 중국은 원료 목록·등록 절차 우선 확인.' : ''}`;
     case 'priorityMarket':
       return '첫 출시 국가 규제 기준으로 처방 확정, 이후 국가 확장.';
     case 'countryIngredients':
@@ -428,7 +466,11 @@ export function demoBlueprint(idea: string, notice?: string): Blueprint {
     const e = demoEntry(f.key, demoCandidates(f.key, idea, intake, spec, entries));
     entries[f.key] = e;
     // later demo rules read the values decided so far
-    if (f.spec && e.origin !== 'UNDETERMINED') spec[f.spec] = spec[f.spec]?.mode === 'idea' ? spec[f.spec] : { mode: 'ai', value: f.spec === 'markets' ? marketCodes(e.value) : f.multi ? splitList(e.value) : [e.value] };
+    if (f.key === 'productType' && e.origin !== 'UNDETERMINED') {
+      const { category, type } = splitKind(e.value);
+      if (category && spec.category?.mode !== 'idea') spec.category = { mode: 'ai', value: [category] };
+      if (spec.subtype?.mode !== 'idea') spec.subtype = { mode: 'ai', value: [type] };
+    } else if (f.spec && e.origin !== 'UNDETERMINED') spec[f.spec] = spec[f.spec]?.mode === 'idea' ? spec[f.spec] : { mode: 'ai', value: f.spec === 'markets' ? marketCodes(e.value) : f.multi ? splitList(e.value) : [e.value] };
   }
   // second pass: sentence-type items (concept, USP, ...) read the finished target / formula values
   for (const f of BLUEPRINT_FIELDS) if ((!f.spec || f.key === 'keywords') && entries[f.key].origin !== 'USER_PROVIDED') entries[f.key] = demoEntry(f.key, demoCandidates(f.key, idea, intake, spec, entries));
@@ -589,6 +631,13 @@ export function blueprintToSpec(bp: Blueprint): Spec {
       spec[f.spec] = { mode: 'unknown', value: [] };
       continue;
     }
+    if (f.key === 'productType') {
+      const { category, type } = splitKind(e.value);
+      const mode = e.origin === 'USER_PROVIDED' ? 'user' : bp.mode === 'ai' ? 'idea' : 'ai';
+      if (category) spec.category = { mode, value: [category], reason: e.reason };
+      spec.subtype = { mode, value: [type], reason: e.reason };
+      continue;
+    }
     const value =
       f.spec === 'markets' || f.spec === 'priorityMarket'
         ? marketCodes(e.value)
@@ -614,7 +663,7 @@ export function blueprintToIntake(bp: Blueprint, base: Intake): Intake {
   const e = bp.entries;
   const kind = (k: string) => (e[k]?.origin === 'USER_PROVIDED' ? 'USER_INPUT' : 'AI_ESTIMATE') as Intake['category']['kind'];
   const next = { ...base };
-  if (!isUndecided(e.category)) next.category = { value: isUndecided(e.productType) ? e.category.value : `${e.category.value} > ${e.productType.value}`, kind: kind('category') };
+  if (!isUndecided(e.productType)) next.category = { value: e.productType.value, kind: kind('productType') };
   if (!isUndecided(e.benefits)) next.benefit = { value: splitList(e.benefits.value).join(' / '), kind: kind('benefits') };
   if (!isUndecided(e.ages)) next.target = { value: `${splitList(e.ages.value).join('·')} ${isUndecided(e.gender) ? '' : e.gender.value}`.trim(), kind: kind('ages') };
   if (!isUndecided(e.targetPrice)) next.price = { value: e.targetPrice.value, kind: kind('targetPrice') };
@@ -649,6 +698,9 @@ export function readBlueprint(raw: unknown): Blueprint | undefined {
         ? { fieldKey: f.key, value: e.value, origin: e.origin === 'USER_PROVIDED' || e.origin === 'AI_SUGGESTED' ? e.origin : 'UNDETERMINED', reason: typeof e.reason === 'string' ? e.reason : '', detail: typeof e.detail === 'string' && e.detail ? e.detail : undefined, confidence: typeof e.confidence === 'number' ? e.confidence : 0, needsVerification: e.needsVerification !== false, sourceReferences: Array.isArray(e.sourceReferences) ? e.sourceReferences.filter((s) => typeof s === 'string') : [], locked: e.locked === true, review: typeof e.review === 'string' ? e.review : undefined, previous: Array.isArray(e.previous) ? e.previous.filter((s) => typeof s === 'string') : [] }
         : { fieldKey: f.key, value: UNDECIDED, origin: 'UNDETERMINED', reason: '', confidence: 0, needsVerification: true, sourceReferences: [] };
   }
+  // blueprints saved before 2026-10-20 kept the category in its own item
+  const oldCat = (b.entries as Record<string, Partial<BlueprintEntry>>).category?.value;
+  if (typeof oldCat === 'string' && oldCat && oldCat !== UNDECIDED && !isUndecided(entries.productType) && !entries.productType.value.includes('>')) entries.productType = { ...entries.productType, value: `${oldCat} > ${entries.productType.value}` };
   const regulatory = Array.isArray(b.regulatory)
     ? b.regulatory.filter((r) => r && typeof r.country === 'string').map((r) => ({ country: r.country, status: r.status === 'VERIFIED' && r.source && r.checkedAt ? ('VERIFIED' as const) : ('REVIEW_REQUIRED' as const), items: Array.isArray(r.items) ? r.items : [], source: r.source ?? null, checkedAt: r.checkedAt ?? null, conditions: Array.isArray(r.conditions) ? r.conditions : [] }))
     : [];
