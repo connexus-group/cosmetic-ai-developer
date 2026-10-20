@@ -16,3 +16,13 @@ npm run build
 
 ## Stack
 React 19 · TypeScript · Vite · Tailwind CSS v4 · Recharts · Lucide Icons · React Router
+
+## 구조 (Frontend MVP)
+- `src/data/types.ts` 데이터 타입 · `src/data/mock.ts` 데모 데이터(모두 가상) · `src/data/source.ts` 데이터 소스 인터페이스
+- 화면은 `dataSource.*`만 호출합니다. 실제 API 연결 시 `source.ts`의 `dataSource`만 교체하면 됩니다.
+- `src/lib/engine.ts` 진행률·원가·규제·일정 계산 규칙 · `src/lib/brief.ts` 개발의뢰서 생성
+- `src/state/ProjectStore.tsx` 프로젝트 저장 (현재 브라우저 localStorage, 백엔드 연결 시 교체)
+- `src/pages/project/steps/*` 15단계 화면
+
+## 데이터 표시 원칙
+모든 수치에는 DEMO / AI ANALYSIS / AI 추정 / USER INPUT 배지가 붙습니다. 원료사·원료 단가·MOQ·특허·임상 데이터는 만들지 않고 "데이터 없음 / 원료사 확인 필요"로 표시하며, 규제는 항상 "규제 검토 필요"로 안내합니다.
