@@ -3,6 +3,7 @@ import { fieldsOf, marketLabel, SPEC_GROUPS } from '@/data/intakeSpec';
 import { BLUEPRINT_FIELDS } from '@/data/blueprintFields';
 import type { DataKind, Project } from '@/data/types';
 import { displayValue, first, isSet, signals, vals } from './spec';
+import { packagingBriefRows } from '@/data/packaging';
 import { conceptOf, costSummary, effectiveConcept, formulaOf, krw, packageOf, regulationItems, testsOf, timelineOf } from './engine';
 
 export interface BriefField {
@@ -12,7 +13,7 @@ export interface BriefField {
   value: string;
   /** where the auto value came from */
   basis: 'intake' | 'selection' | 'ai' | 'calc';
-  section: 'Overview' | 'Product' | 'Commercial' | 'Compliance' | 'Blueprint' | 'AIBlueprint';
+  section: 'Overview' | 'Product' | 'Commercial' | 'Compliance' | 'Blueprint' | 'AIBlueprint' | 'Packaging';
   /** source badge when it differs from what `basis` implies */
   kind?: DataKind;
 }
@@ -113,6 +114,8 @@ export function buildBrief(p: Project): BriefField[] {
     ...(extras.length ? [{ key: 'specRequests', label: 'Blueprint Requests', ko: '상세 기획 요청사항', value: extras.join(' · '), basis: 'intake' as const, section: 'Compliance' as const }] : []),
     ...blueprint,
     ...aiBlueprint,
+    // Packaging Brief from the AI Packaging & Design Studio (only after a design direction is selected)
+    ...packagingBriefRows(p).map((r) => ({ key: r.key, label: r.label, ko: r.label, value: r.value, basis: 'selection' as const, section: 'Packaging' as const, kind: r.kind })),
   ];
   return auto.map((x) => (p.brief[x.key] !== undefined ? { ...x, value: p.brief[x.key] } : x));
 }

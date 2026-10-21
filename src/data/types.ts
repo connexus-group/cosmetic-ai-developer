@@ -144,6 +144,8 @@ export interface Project {
   competitorUrls?: string[];
   /** user edits on the brief */
   brief: Record<string, string>;
+  /** AI Packaging & Design Studio (Packaging screen, added 2026-10-21; absent on older projects) */
+  packagingStudio?: PackagingStudio;
 }
 
 // ── Analysis payloads ───────────────────────────────────────────────────────
@@ -399,4 +401,127 @@ export interface Blueprint {
   /** why Demo Mode was used (no API key, connection error, ...) */
   notice?: string;
   confirmedAt?: string;
+}
+
+// ── AI Packaging & Design Studio ────────────────────────────────────────────
+
+export interface ColorSwatch {
+  name: string;
+  hex: string;
+}
+
+/** One packaging design direction. `mode` tells whether the AI wrote it or the labeled demo rules. */
+export interface DesignDirection {
+  id: string;
+  name: string;
+  summary: string;
+  /** why, quoting the planning inputs */
+  reason: string;
+  /** names of the planning inputs used as the basis */
+  basis: string[];
+  mainColors: ColorSwatch[];
+  subColors: ColorSwatch[];
+  container: string;
+  material: string;
+  carton: string;
+  typography: string;
+  finishing: string;
+  targetFit: string;
+  /** English keywords for the image generator (no text / logos) */
+  imagePrompt: string;
+}
+
+export interface DesignDirectionSet {
+  mode: 'ai' | 'demo';
+  model?: string;
+  generatedAt: string;
+  /** why the demo rules were used */
+  notice?: string;
+  /** fingerprint of the planning inputs used, to flag "기획 변경됨" */
+  basisKey: string;
+  items: DesignDirection[];
+}
+
+/** A real packaging reference. Image addresses only (never copied); null image = text only. */
+export interface PackagingReference {
+  id: string;
+  imageUrl: string | null;
+  pageUrl: string;
+  site: string;
+  title: string;
+  /** printed on the source page (page collection) or typed by the user; null = 확인 필요 */
+  brand: string | null;
+  productName: string | null;
+  kind: 'container' | 'carton' | 'set' | 'unknown';
+  /** the user corrected the kind */
+  kindByUser?: boolean;
+  width: number | null;
+  height: number | null;
+  via: 'image-search' | 'page';
+  imageStatus: 'ok' | 'failed' | 'none';
+  imageNote: string | null;
+  /** phrases copied from the source page (page-text) */
+  features: string[];
+  featuresBasis: 'page-text' | null;
+  /** the user's own note about the design */
+  note?: string;
+  source: string;
+  query: string | null;
+  collectedAt: string;
+}
+
+export interface MockupOptions {
+  container: string;
+  mainColor: string;
+  subColor: string;
+  style: string;
+  labelLayout: string;
+  carton: string;
+}
+
+/** Brand logo, product name, volume and label copy, kept apart from the generated image and laid over it. */
+export interface PackageIdentity {
+  brandName: string;
+  productName: string;
+  volume: string;
+  copy: string;
+  /** IndexedDB key of the uploaded logo (image stays in this browser) */
+  logoKey?: string;
+}
+
+export interface MockupMeta {
+  id: string;
+  kind: 'container' | 'carton' | 'set' | 'colorway';
+  createdAt: string;
+  provider: string;
+  model: string;
+  prompt: string;
+  directionId?: string;
+  options: MockupOptions & { variantColor?: string };
+  /** where the image file is: this browser (IndexedDB) and/or Supabase Storage */
+  stored: 'browser' | 'browser+supabase';
+  /** chosen for the Packaging Brief */
+  pinned?: boolean;
+}
+
+/** A supplier quote typed by the user. The site never makes up unit prices. */
+export interface SupplierQuote {
+  supplier: string;
+  unitPrice: number | null;
+  moq: number | null;
+  date: string;
+  note: string;
+}
+
+export interface PackagingStudio {
+  directions?: DesignDirectionSet;
+  selectedDirectionId?: string;
+  selectedAt?: string;
+  references?: PackagingReference[];
+  identity?: PackageIdentity;
+  mockupOptions?: MockupOptions;
+  mockups?: MockupMeta[];
+  quotes?: { container?: SupplierQuote; carton?: SupplierQuote };
+  /** material / finishing the user picked on Manufacturing Feasibility */
+  material?: string;
 }
