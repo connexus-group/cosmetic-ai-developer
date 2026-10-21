@@ -38,6 +38,9 @@
     },
     "api/competitor-discovery.ts": {
       "maxDuration": 300
+    },
+    "api/packaging.ts": {
+      "maxDuration": 120
     }
   }
 }

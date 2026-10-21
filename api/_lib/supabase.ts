@@ -330,3 +330,32 @@ export async function loadFx(base: string, day: string): Promise<{ rate: number;
 export async function saveFx(row: { base: string; quote: string; rate: number; rate_date: string; fetched_on: string; source: string }) {
   await rest('fx_rates?on_conflict=base,quote,fetched_on', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal', body: JSON.stringify(row) });
 }
+
+// ── Packaging Studio · schema: 20261021000000_packaging_studio.sql ──
+
+export async function loadReferenceSearch(queryHash: string): Promise<{ created_at: string; results: unknown } | null> {
+  const rows = (await rest(`packaging_reference_searches?query_hash=eq.${queryHash}&select=created_at,results&order=created_at.desc&limit=1`)) as { created_at: string; results: unknown }[] | null;
+  return rows?.[0] ?? null;
+}
+
+export async function saveReferenceSearch(row: { query_hash: string; query: string; results: unknown; credits: number }) {
+  await rest('packaging_reference_searches', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(row) });
+}
+
+export async function saveMockup(row: { id: string; project_id: string; kind: string; provider: string; model: string; prompt: string; options: unknown; storage_path: string | null }) {
+  await rest('packaging_mockups', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(row) });
+}
+
+/** Uploads one generated image to the private "packaging-mockups" bucket. Returns the object path. */
+export async function uploadMockup(path: string, bytes: Uint8Array, mime: string): Promise<string> {
+  const c = cfg();
+  if (!c) throw new Error('Supabase not configured');
+  const r = await http.fetch(`${c.url}/storage/v1/object/packaging-mockups/${path}`, {
+    method: 'POST',
+    headers: { apikey: c.key, ...(c.key.startsWith('eyJ') ? { Authorization: `Bearer ${c.key}` } : {}), 'Content-Type': mime, 'x-upsert': 'true' },
+    body: bytes as unknown as BodyInit,
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!r.ok) throw new Error(`Supabase Storage ${r.status}: ${(await r.text().catch(() => '')).slice(0, 200)}`);
+  return path;
+}
