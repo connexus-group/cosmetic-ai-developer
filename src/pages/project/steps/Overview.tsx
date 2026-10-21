@@ -76,6 +76,7 @@ export default function Overview() {
       const mapped = blueprintToSpec(bp);
       const ids = new Set<SpecFieldId>(BLUEPRINT_FIELDS.filter((f) => f.spec && changedKeys.includes(f.key)).map((f) => f.spec!));
       if (changedKeys.includes('lowIrritation')) ids.add('lowIrritation');
+      if (changedKeys.includes('productType')) ids.add('category');
       if (changedKeys.some((k) => k === 'hero' || k === 'actives')) ids.add('mustInclude');
       if (changedKeys.includes('markets')) ids.add('overseasReview');
       const nextSpec: Spec = { ...x.spec };
