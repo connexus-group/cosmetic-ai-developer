@@ -1,8 +1,9 @@
 import { COMPETITORS, TESTS } from '@/data/mock';
 import { fieldsOf, marketLabel, SPEC_GROUPS } from '@/data/intakeSpec';
-import { CORE_KEYS, coreLabel } from '@/data/blueprintFields';
+import { BLUEPRINT_FIELDS } from '@/data/blueprintFields';
 import type { DataKind, Project } from '@/data/types';
 import { displayValue, first, isSet, signals, vals } from './spec';
+import { packagingBriefRows } from '@/data/packaging';
 import { conceptOf, costSummary, effectiveConcept, formulaOf, krw, packageOf, regulationItems, testsOf, timelineOf } from './engine';
 
 export interface BriefField {
@@ -12,7 +13,7 @@ export interface BriefField {
   value: string;
   /** where the auto value came from */
   basis: 'intake' | 'selection' | 'ai' | 'calc';
-  section: 'Overview' | 'Product' | 'Commercial' | 'Compliance' | 'Blueprint' | 'AIBlueprint';
+  section: 'Overview' | 'Product' | 'Commercial' | 'Compliance' | 'Blueprint' | 'AIBlueprint' | 'Packaging';
   /** source badge when it differs from what `basis` implies */
   kind?: DataKind;
 }
@@ -57,13 +58,11 @@ export function buildBrief(p: Project): BriefField[] {
   });
   const undecided = SPEC_GROUPS.flatMap((grp) => fieldsOf(grp.id)).filter((f) => !isSet(spec[f.id]));
   if (undecided.length) blueprint.push({ key: 'blueprint-open', label: 'Undecided', ko: '미정 항목', value: undecided.map((f) => f.label).join(', '), basis: 'intake', section: 'Blueprint' });
-  // The confirmed AI Product Blueprint (core items), with where each value came from.
+  // The confirmed AI Product Blueprint, item by item, with where each value came from.
   const bp = p.blueprint;
   const aiBlueprint: BriefField[] = bp
     ? [
-        // the 12 core items; the detailed items are in the sections above through the spec
-        ...CORE_KEYS.map((key) => {
-          const f = { key, label: coreLabel(key) };
+        ...BLUEPRINT_FIELDS.map((f) => {
           const e = bp.entries[f.key];
           const undecided = !e || e.origin === 'UNDETERMINED';
           return {
@@ -115,6 +114,8 @@ export function buildBrief(p: Project): BriefField[] {
     ...(extras.length ? [{ key: 'specRequests', label: 'Blueprint Requests', ko: '상세 기획 요청사항', value: extras.join(' · '), basis: 'intake' as const, section: 'Compliance' as const }] : []),
     ...blueprint,
     ...aiBlueprint,
+    // Packaging Brief from the AI Packaging & Design Studio (only after a design direction is selected)
+    ...packagingBriefRows(p).map((r) => ({ key: r.key, label: r.label, ko: r.label, value: r.value, basis: 'selection' as const, section: 'Packaging' as const, kind: r.kind })),
   ];
   return auto.map((x) => (p.brief[x.key] !== undefined ? { ...x, value: p.brief[x.key] } : x));
 }

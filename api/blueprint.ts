@@ -20,8 +20,6 @@ interface FieldDef {
   options?: string[];
   multi?: boolean;
   verify?: boolean;
-  /** summary item on the first screen (combines several detailed items) */
-  core?: boolean;
 }
 interface RequestBody {
   idea: string;
@@ -32,6 +30,33 @@ interface RequestBody {
   context?: Record<string, { value: string; origin: string }>;
   /** values already suggested for a key; give something different */
   avoid?: Record<string, string[]>;
+  /** competitor products collected from real pages (Firecrawl → Supabase); the only products the model may name */
+  competitors?: CompetitorRef[];
+}
+
+interface CompetitorRef {
+  brand: string;
+  product: string;
+  price: string;
+  size: string;
+  per100Krw: number | null;
+  keyIngredients: string[];
+  usp: string[];
+  url: string;
+  collectedAt: string;
+}
+
+function parseCompetitors(raw: unknown): CompetitorRef[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CompetitorRef[] = [];
+  for (const c of raw.slice(0, 10) as Record<string, unknown>[]) {
+    const url = str(c?.url, 400);
+    if (!/^https:\/\/[^\s]+$/i.test(url)) continue;
+    const list = (v: unknown, n: number) => (Array.isArray(v) ? v.slice(0, n).map((x) => str(x, 80)).filter(Boolean) : []);
+    const per = Number(c.per100Krw);
+    out.push({ brand: str(c.brand, 60), product: str(c.product, 120), price: str(c.price, 40), size: str(c.size, 30), per100Krw: Number.isFinite(per) && per > 0 ? Math.round(per) : null, keyIngredients: list(c.keyIngredients, 6), usp: list(c.usp, 5), url, collectedAt: str(c.collectedAt, 30) });
+  }
+  return out;
 }
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -53,7 +78,6 @@ function parseBody(raw: unknown): RequestBody | null {
       options: Array.isArray(f.options) ? f.options.slice(0, 16).map((o) => str(o, 40)) : undefined,
       multi: f.multi === true,
       verify: f.verify === true,
-      core: f.core === true,
     });
   }
   const known = new Set(fields.map((f) => f.key));
@@ -65,32 +89,40 @@ function parseBody(raw: unknown): RequestBody | null {
   const avoid: RequestBody['avoid'] = {};
   if (b.avoid && typeof b.avoid === 'object')
     for (const [k, v] of Object.entries(b.avoid as Record<string, unknown>)) if (known.has(k) && Array.isArray(v)) avoid[k] = v.slice(0, 8).map((x) => str(x, 200));
-  return { idea, fields, keys: keys?.length ? keys : undefined, context, avoid };
+  return { idea, fields, keys: keys?.length ? keys : undefined, context, avoid, competitors: parseCompetitors(b.competitors) };
 }
 
 const SYSTEM = `당신은 화장품 브랜드의 시니어 상품기획자(Product Planner)입니다. 비전문가 브랜드가 입력한 제품 아이디어를 바탕으로, 제조사에 전달하기 전 단계의 상세 제품 기획 초안을 작성합니다.
 
 작성 원칙:
-- 모든 값은 한국어로, 짧고 실무적으로 씁니다. 목록형 항목은 쉼표로 구분합니다.
+- 모든 값은 한국어로 씁니다. 목록형 항목은 쉼표로 구분합니다.
+- 문체: AI가 기획자에게 제안하는 말투가 아니라, 브랜드사 상품기획자가 직접 쓴 기획서 문체로 씁니다.
+  - 짧은 개조식으로 끝맺습니다(예: "~ 타깃", "~ 적용", "~ 목표", "~ 검토 필요", "~ 확인 예정").
+  - "제안합니다", "추천드립니다", "~하는 것이 좋습니다", "~할 수 있습니다", "고려해 보세요" 같은 표현은 쓰지 않습니다.
+  - 꾸밈말과 일반론을 빼고, 이 제품에 해당하는 사실과 결정만 씁니다.
+- value 작성 방식:
+  - 선택지가 있는 항목과 목록형 항목은 값만 짧게 씁니다(예: "밀키", "30ml", "탄력, 주름"). 다른 화면이 이 값을 그대로 읽습니다.
+  - 서술형 항목(컨셉, 차별화, USP, 구매 동기, 니즈, 사용감, 원료 선택 이유, 포지셔닝, 저자극 방향, 적합성, 규제 검토 등)은 1문장, 길어도 60자 안팎으로 씁니다.
+- detail에는 항목마다 기획 메모를 1~2개 짧은 문장(합쳐서 80자 안팎)으로 씁니다. 이 값을 어떻게 적용하는지, 제조사와 정할 것이 무엇인지만 적습니다. 수치·원가·규제는 확정처럼 쓰지 않고 "확인 필요"로 씁니다.
+- reason은 왜 이 값을 제안했는지 한 문장으로 씁니다.
 - origin 규칙:
   - USER_PROVIDED: 사용자 아이디어 문장에 명시된 조건만. 사용자가 쓴 조건은 바꾸지 말고 그대로 옮깁니다.
   - AI_SUGGESTED: 아이디어에서 합리적으로 보완한 제안. 왜 그렇게 제안했는지 reason에 한 문장으로 씁니다.
   - UNDETERMINED: 근거가 부족해 지금 정하면 오해를 부를 항목. value는 "미정" 또는 "확인 필요"로 둡니다.
 - 시장 규모, 원가, 원료 규제, 인증, 시험 적합성은 실제 검증 없이 확정값으로 쓰지 않습니다. 원가는 "추정 범위"로만 쓰고 needsVerification을 true로 둡니다.
 - 국가별 규제는 일반 지식만으로 수출 가능·적합을 판정하지 않습니다. "규제 확인 필요"라고 쓰고, 무엇을 확인해야 하는지만 적습니다.
-- sourceReferences에는 실제로 근거가 된 것만 씁니다: "사용자 입력" 또는 확인해야 할 공식 자료의 이름(예: "중국 NMPA 화장품 원료 목록 확인 필요"). URL이나 존재하지 않는 자료를 만들지 않습니다. 근거가 일반 지식뿐이면 빈 배열로 둡니다.
+- sourceReferences에는 실제로 근거가 된 것만 씁니다: "사용자 입력" 또는 확인해야 할 공식 자료의 이름(예: "중국 NMPA 화장품 원료 목록 확인 필요"). URL이나 존재하지 않는 자료를 만들지 않습니다. 근거가 일반 지식뿐이면 빈 배열로 둡니다. 단, 요청에 "실제 수집한 경쟁제품" 목록이 있으면 그 목록의 제품과 출처 URL만 근거로 인용할 수 있습니다.
 - 실제 브랜드 제품명이나 특허·임상 결과를 사실처럼 만들어내지 않습니다. 벤치마킹은 제품 유형으로 쓰고 확인 필요로 둡니다.
 - confidence는 0~1 사이 숫자로, 아이디어에 근거가 많을수록 높게 씁니다.
 - 선택지가 주어진 항목은 가능하면 선택지 안에서 고르되, 더 맞는 값이 있으면 직접 씁니다.
-- 판매 국가가 여러 곳이면 모든 국가의 조건을 기획 전체(원료, 기능성, 표시·광고, 시험)에 함께 반영합니다.
-- [요약] 표시가 붙은 항목은 첫 화면에 보이는 핵심 요약입니다. 관련 상세 항목과 모순되지 않게 한 줄로 짧게 씁니다. 사용자가 쓴 조건이 들어 있으면 빠짐없이 그대로 포함하고, 그 경우에도 다른 부분을 AI가 보완했다면 origin은 AI_SUGGESTED로 두고 reason에 어느 부분이 사용자 입력인지 씁니다.`;
+- 판매 국가가 여러 곳이면 모든 국가의 조건을 기획 전체(원료, 기능성, 표시·광고, 시험)에 함께 반영합니다.`;
 
 function userPrompt(body: RequestBody) {
   const want = body.keys ? body.fields.filter((f) => body.keys!.includes(f.key)) : body.fields;
   const lines = want.map((f) => {
     const opts = f.options?.length ? ` · 선택지: ${f.options.join(' / ')}` : '';
     const avoid = body.avoid?.[f.key]?.length ? ` · 이미 제안한 값(다른 후보를 제시): ${body.avoid[f.key].join(' | ')}` : '';
-    return `- ${f.core ? '[요약] ' : ''}${f.key} (${f.label}): ${f.guide}${f.multi ? ' · 쉼표로 여러 개' : ''}${f.verify ? ' · 반드시 확인 필요 항목' : ''}${opts}${avoid}`;
+    return `- ${f.key} (${f.label}): ${f.guide}${f.multi ? ' · 쉼표로 여러 개' : ''}${f.verify ? ' · 반드시 확인 필요 항목' : ''}${opts}${avoid}`;
   });
   const ctx = Object.entries(body.context ?? {})
     .filter(([k]) => !body.keys?.includes(k))
@@ -98,6 +130,11 @@ function userPrompt(body: RequestBody) {
   return [
     `제품 아이디어:\n"""${body.idea}"""`,
     ctx.length ? `현재 기획 초안의 다른 항목 (이 값들과 일관되게 작성):\n${ctx.join('\n')}` : '',
+    body.competitors?.length
+      ? `실제 수집한 경쟁제품 (공개 제품 페이지에서 Firecrawl로 수집, 페이지에 적힌 값만):\n${body.competitors
+          .map((c, i) => `${i + 1}. ${c.brand} ${c.product} · 가격 ${c.price || '없음'} · 용량 ${c.size || '없음'}${c.per100Krw ? ` · 100ml당 약 ${c.per100Krw.toLocaleString('ko-KR')}원` : ''} · 핵심 원료 ${c.keyIngredients.join(', ') || '없음'} · USP ${c.usp.map((u) => `"${u}"`).join(', ') || '없음'} · 출처 ${c.url} (${c.collectedAt.slice(0, 10)} 수집)`)
+          .join('\n')}\n경쟁·차별화·가격·포지셔닝·벤치마킹 항목은 이 목록을 근거로 쓰고, 근거로 쓴 제품의 출처 URL을 sourceReferences에 그대로 넣습니다. 이 목록에 없는 실제 제품명이나 URL은 쓰지 않습니다. 목록에 없는 값(점유율, 판매량, 리뷰 수 등)은 만들지 않습니다.`
+      : '',
     `작성할 항목 (모든 항목을 fields 배열에 한 번씩 포함):\n${lines.join('\n')}`,
     body.keys
       ? 'regulatory는 판매 국가 관련 항목을 작성한 경우에만 채우고, 아니면 빈 배열로 둡니다. productName은 현재 제품명을 유지할 수 있도록 짧게 씁니다.'
@@ -119,10 +156,11 @@ function schema(keys: string[]) {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['fieldKey', 'value', 'origin', 'reason', 'confidence', 'needsVerification', 'sourceReferences'],
+          required: ['fieldKey', 'value', 'detail', 'origin', 'reason', 'confidence', 'needsVerification', 'sourceReferences'],
           properties: {
             fieldKey: { type: 'string', enum: keys },
             value: { type: 'string' },
+            detail: { type: 'string' },
             origin: { type: 'string', enum: [...ORIGINS] },
             reason: { type: 'string' },
             confidence: { type: 'number' },
@@ -150,7 +188,7 @@ function schema(keys: string[]) {
 
 interface ModelOutput {
   productName: string;
-  fields: { fieldKey: string; value: string; origin: string; reason: string; confidence: number; needsVerification: boolean; sourceReferences: string[] }[];
+  fields: { fieldKey: string; value: string; detail?: string; origin: string; reason: string; confidence: number; needsVerification: boolean; sourceReferences: string[] }[];
   regulatory: { country: string; items: string[]; conditions: string[] }[];
 }
 
@@ -159,6 +197,7 @@ function sanitize(out: ModelOutput, body: RequestBody) {
   const wanted = new Set(body.keys ?? body.fields.map((f) => f.key));
   const verify = new Set(body.fields.filter((f) => f.verify).map((f) => f.key));
   const seen = new Set<string>();
+  const allowedUrls = new Set((body.competitors ?? []).map((c) => c.url));
   const entries = [];
   for (const f of out.fields ?? []) {
     if (!wanted.has(f.fieldKey) || seen.has(f.fieldKey)) continue;
@@ -167,11 +206,13 @@ function sanitize(out: ModelOutput, body: RequestBody) {
     entries.push({
       fieldKey: f.fieldKey,
       value: String(f.value ?? '').slice(0, 600),
+      detail: String(f.detail ?? '').slice(0, 1200),
       origin,
       reason: String(f.reason ?? '').slice(0, 600),
       confidence: Math.max(0, Math.min(1, Number(f.confidence) || 0)),
       needsVerification: verify.has(f.fieldKey) || origin === 'UNDETERMINED' || f.needsVerification === true,
-      sourceReferences: (f.sourceReferences ?? []).map((s) => String(s).slice(0, 200)).filter((s) => !/https?:\/\//i.test(s)).slice(0, 5),
+      // URLs are kept only when they are one of the collected competitor pages sent with the request
+      sourceReferences: (f.sourceReferences ?? []).map((s) => String(s).slice(0, 400).trim()).filter((s) => !/https?:\/\//i.test(s) || allowedUrls.has(s)).slice(0, 5),
     });
   }
   const regulatory = (out.regulatory ?? []).slice(0, 12).map((r) => ({

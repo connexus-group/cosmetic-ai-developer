@@ -91,8 +91,12 @@ export default function Cost() {
               </div>
             ))}
             <div className="flex items-center justify-between pt-3 text-sm">
-              <span className="font-semibold text-ink-900">예상 제조원가 (MOQ {p.moq.toLocaleString()})</span>
+              <span className="font-semibold text-ink-900">합계금액 (MOQ {p.moq.toLocaleString()})</span>
               <span className="text-lg font-semibold tabular-nums text-ink-900">{krw(s.total)}</span>
+            </div>
+            <div className="flex items-center justify-between pt-2 text-sm">
+              <span className="font-semibold text-ink-900">합계금액 (VAT 포함)</span>
+              <span className="text-lg font-semibold tabular-nums text-ink-900">{krw(s.totalWithVat)}</span>
             </div>
           </div>
         </Section>
@@ -141,7 +145,7 @@ export default function Cost() {
             </div>
           </Card>
 
-          <Section title="MOQ에 따라 개당 원가는 어떻게 바뀌나요?" subtitle="수량이 많을수록 용기·충진 단가가 내려가요 (데모 가정)" action={<KindBadge kind="AI_ESTIMATE" />}>
+          <Section title="MOQ에 따라 개당 원가는 어떻게 바뀌나요?" subtitle="수량이 많을수록 용기·임가공 단가가 내려가요 (데모 가정)" action={<KindBadge kind="AI_ESTIMATE" />}>
             <div className="h-52">
               <ResponsiveContainer>
                 <BarChart data={byMoq} margin={{ top: 22, right: 8, left: -8, bottom: 0 }}>

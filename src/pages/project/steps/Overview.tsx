@@ -4,10 +4,12 @@ import clsx from 'clsx';
 import { AlertCircle, ArrowRight, Check, Pencil } from 'lucide-react';
 import { CLARIFY_QUESTIONS } from '@/data/mock';
 import { SPEC_FIELDS, SPEC_GROUPS } from '@/data/intakeSpec';
-import type { IntakeKey, SpecAnswer, SpecFieldId } from '@/data/types';
-import { CompactBlueprintEditor } from '@/components/blueprint/CompactBlueprintEditor';
+import type { Blueprint, IntakeKey, Spec, SpecAnswer, SpecFieldId } from '@/data/types';
+import { BLUEPRINT_FIELDS } from '@/data/blueprintFields';
+import { BlueprintReview } from '@/components/blueprint/BlueprintReview';
+import { blueprintToSpec, refreshEntries } from '@/lib/blueprint';
 import { BlueprintEvidence } from '@/components/market/RealEvidence';
-import { useBlueprintUpdate } from '@/components/blueprint/useBlueprintUpdate';
+import { CompetitorEvidence } from '@/components/competitors/CompetitorEvidence';
 import { BlueprintCompact } from '@/components/intake/BlueprintSummary';
 import { IntakeGroup } from '@/components/intake/IntakeWizard';
 import { ProgressRing } from '@/components/charts';
@@ -63,7 +65,43 @@ export default function Overview() {
   };
 
   // The confirmed AI Product Blueprint stays editable here; changed items flow into the spec later steps read.
-  const { updateBlueprint, refresh: refreshBlueprint, busy: bpBusy, note: bpNote } = useBlueprintUpdate();
+  const [bpBusy, setBpBusy] = useState<Set<string>>(new Set());
+  const [bpNote, setBpNote] = useState<string | null>(null);
+  const updateBlueprint = (next: (cur: Blueprint) => Blueprint) =>
+    update((x) => {
+      if (!x.blueprint) return x;
+      const bp = next(x.blueprint);
+      const changedKeys = BLUEPRINT_FIELDS.filter((f) => x.blueprint!.entries[f.key]?.value !== bp.entries[f.key]?.value || x.blueprint!.entries[f.key]?.origin !== bp.entries[f.key]?.origin).map((f) => f.key);
+      if (!changedKeys.length) return { ...x, blueprint: bp };
+      const mapped = blueprintToSpec(bp);
+      const ids = new Set<SpecFieldId>(BLUEPRINT_FIELDS.filter((f) => f.spec && changedKeys.includes(f.key)).map((f) => f.spec!));
+      if (changedKeys.includes('lowIrritation')) ids.add('lowIrritation');
+      if (changedKeys.includes('productType')) ids.add('category');
+      if (changedKeys.some((k) => k === 'hero' || k === 'actives')) ids.add('mustInclude');
+      if (changedKeys.includes('markets')) ids.add('overseasReview');
+      const nextSpec: Spec = { ...x.spec };
+      const answers = { ...x.answers };
+      for (const id of ids) {
+        if (mapped[id]) nextSpec[id] = mapped[id];
+        else delete nextSpec[id];
+        const legacy = SPEC_FIELDS.find((f) => f.id === id)?.legacy;
+        if (legacy) {
+          const m = mapped[id] ? specToAnswers({ [id]: mapped[id] })[legacy] : undefined;
+          if (m) answers[legacy] = m;
+          else delete answers[legacy];
+        }
+      }
+      const price = ids.has('targetPrice') && nextSpec.targetPrice?.mode !== 'unknown' ? parseWon(nextSpec.targetPrice?.value[0]) : null;
+      return { ...x, blueprint: bp, spec: nextSpec, answers, retailPrice: price && price > 1000 ? price : x.retailPrice, moq: ids.has('firstRun') ? (moqFrom(nextSpec) ?? x.moq) : x.moq, changed: touch('intake') };
+    });
+  const refreshBlueprint = async (keys: string[]) => {
+    if (!p.blueprint) return;
+    setBpBusy(new Set(keys));
+    const { bp, error } = await refreshEntries(p.blueprint, keys);
+    updateBlueprint((cur) => ({ ...cur, entries: { ...cur.entries, ...Object.fromEntries(keys.filter((k) => !cur.entries[k]?.locked).map((k) => [k, bp.entries[k]])) }, regulatory: bp.regulatory }));
+    setBpBusy(new Set());
+    setBpNote(error ?? null);
+  };
 
   return (
     <div className="space-y-6">
@@ -147,9 +185,7 @@ export default function Overview() {
         </div>
       </Section>
 
-      {/* projects started from the AI Product Blueprint edit their conditions in the compact editor below */}
-      {!p.blueprint && (
-        <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Section title="AI 요구사항 분석" subtitle="값을 누르면 수정할 수 있어요. 수정하면 이후 분석에 '재검토 필요'가 표시됩니다.">
           <div className="mb-4 rounded-xl bg-ink-50/60 px-4 py-3 text-sm text-ink-800">“{p.idea}”</div>
           <dl className="divide-y divide-ink-50">
@@ -199,18 +235,15 @@ export default function Overview() {
         </Section>
       </div>
 
-      )}
-
       {p.blueprint && (
-        <section>
+        <Section title="AI Product Blueprint · 확정한 제품 기획안" subtitle="'이 기획안으로 제품 개발 시작'에서 확정한 기획안이에요. 수정하면 이후 분석 단계에 반영되고 '재검토 필요'가 표시됩니다.">
           {bpNote && <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{bpNote}</div>}
-          <CompactBlueprintEditor bp={p.blueprint} onChange={(bp) => updateBlueprint(() => bp)} actions={{ busy: bpBusy, onRefresh: refreshBlueprint }} />
+          <BlueprintReview bp={p.blueprint} onChange={(bp) => updateBlueprint(() => bp)} actions={{ busy: bpBusy, onRefresh: refreshBlueprint }} />
           <BlueprintEvidence bp={p.blueprint} />
-          <p className="mt-2 text-[11px] text-slate-400">점도·원료별 역할·용기 재질·상세 원가·국가별 규제·시험 같은 상세 항목은 Formula, Ingredients, Packaging, Cost, Regulation, Testing 단계에서 확인하고 수정할 수 있어요.</p>
-        </section>
+          <CompetitorEvidence />
+        </Section>
       )}
 
-      {!p.blueprint && (
       <Section title="Product Blueprint · 상세 기획 조건" subtitle="상세 기획 입력(6단계)에서 정한 조건이에요. 수정하면 이후 분석에 '재검토 필요'가 표시됩니다.">
         {editGroup ? (
           <IntakeGroup
@@ -227,7 +260,6 @@ export default function Overview() {
           <BlueprintCompact spec={spec} onEdit={setEditGroup} />
         )}
       </Section>
-      )}
     </div>
   );
 }

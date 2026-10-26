@@ -1,4 +1,4 @@
-import { BLUEPRINT_DEPENDENTS, BLUEPRINT_FIELDS, blueprintField, CORE_DEPENDENTS, CORE_SHOWN, MARKET_NAMES, type BlueprintFieldDef } from '@/data/blueprintFields';
+import { BLUEPRINT_DEPENDENTS, BLUEPRINT_FIELDS, blueprintField, MARKET_NAMES, type BlueprintFieldDef } from '@/data/blueprintFields';
 import { fieldById, MARKETS, marketLabel } from '@/data/intakeSpec';
 import type { Blueprint, BlueprintEntry, Intake, RegulatoryCheck, Spec, SpecAnswer } from '@/data/types';
 import { analyzeIdea } from './intake';
@@ -36,6 +36,12 @@ export function marketCodes(v: string): string[] {
 }
 const marketsIn = (text: string) => Object.entries(MARKET_NAMES).filter(([, names]) => names.some((n) => (/^[a-z]+$/.test(n) ? new RegExp(`\\b${n}\\b`, 'i') : new RegExp(n)).test(text))).map(([c]) => c);
 
+/** "스킨케어 > 앰플/세럼" → { category: '스킨케어', type: '앰플/세럼' } */
+export function splitKind(v: string): { category: string; type: string } {
+  const [a, b] = v.split(/\s*>\s*/);
+  return b === undefined ? { category: '', type: a.trim() } : { category: a.trim(), type: b.trim() };
+}
+
 // ── API (server side AI) ────────────────────────────────────────────────────
 
 export interface AiStatus {
@@ -63,11 +69,31 @@ interface AiAnswer {
   regulatory: RegulatoryCheck[];
 }
 
-const fieldPayload = (f: BlueprintFieldDef) => ({ key: f.key, label: f.label, guide: f.guide, options: f.options, multi: f.multi, verify: f.verify, core: !!f.parts });
+const fieldPayload = (f: BlueprintFieldDef) => ({ key: f.key, label: f.label, guide: f.guide, options: f.options, multi: f.multi, verify: f.verify });
+
+/**
+ * Collected competitor products (Competitors screen) sent with AI refresh requests so the model can
+ * cite them. Set by the competitor evidence panel; empty until real products are collected.
+ */
+export interface CompetitorContext {
+  brand: string;
+  product: string;
+  price: string;
+  size: string;
+  per100Krw: number | null;
+  keyIngredients: string[];
+  usp: string[];
+  url: string;
+  collectedAt: string;
+}
+let competitorContext: CompetitorContext[] = [];
+export const setCompetitorContext = (list: CompetitorContext[]) => {
+  competitorContext = list.slice(0, 10);
+};
 
 async function callAi(idea: string, opts: { keys?: string[]; context?: Blueprint; avoid?: Record<string, string[]> } = {}): Promise<AiAnswer> {
   const ctrl = new AbortController();
-  const timer = window.setTimeout(() => ctrl.abort(), 240_000);
+  const timer = window.setTimeout(() => ctrl.abort(), 290_000);
   try {
     const r = await fetch('/api/blueprint', {
       method: 'POST',
@@ -79,6 +105,7 @@ async function callAi(idea: string, opts: { keys?: string[]; context?: Blueprint
         keys: opts.keys,
         context: opts.context ? Object.fromEntries(Object.values(opts.context.entries).map((e) => [e.fieldKey, { value: e.value, origin: e.origin }])) : undefined,
         avoid: opts.avoid,
+        competitors: competitorContext.length ? competitorContext : undefined,
       }),
     });
     const j = (await r.json().catch(() => null)) as (AiAnswer & { message?: string }) | null;
@@ -145,13 +172,21 @@ function ruleSpec(idea: string, intake: Intake): Spec {
 }
 
 function demoCandidates(key: string, idea: string, intake: Intake, spec: Spec, current: Record<string, BlueprintEntry>): Candidate[] {
+  const out = demoCandidatesRaw(key, idea, intake, spec, current);
+  if (key !== 'productType') return out;
+  // one item holds "카테고리 > 세부 유형"
+  const cat = spec.category?.value[0] || fieldById('category').demo({ idea, intake, spec }).value[0] || '스킨케어';
+  return out.map((c) => (c.value.includes('>') ? c : { ...c, value: `${cat} > ${c.value}` }));
+}
+
+function demoCandidatesRaw(key: string, idea: string, intake: Intake, spec: Spec, current: Record<string, BlueprintEntry>): Candidate[] {
   const f = blueprintField(key)!;
   const val = (k: string) => current[k]?.value ?? '';
   const benefits = splitList(val('benefits') || intake.benefit.value).filter((b) => b !== '안티에이징');
   const sensitive = /민감|저자극|진정/.test(idea + val('skinTypes') + val('concerns'));
   const markets = marketCodes(val('markets'));
   const overseas = markets.filter((m) => m !== 'KR');
-  const productType = val('productType') || '앰플/세럼';
+  const productType = splitKind(val('productType')).type || '앰플/세럼';
   const ages = val('ages') || '30대';
   const ing = (kind: 'hero' | 'actives') => [...new Set(benefits.flatMap((b) => INGREDIENTS[b]?.[kind] ?? []))].filter((x) => !(sensitive && /레티/.test(x)));
   const stated = spec[f.spec ?? ('' as never)];
@@ -163,7 +198,7 @@ function demoCandidates(key: string, idea: string, intake: Intake, spec: Spec, c
     return [{ value, reason: '아이디어 문장에 직접 적은 조건입니다.', origin: 'USER_PROVIDED' }];
   }
   if (key === 'lowIrritation' && /저자극/.test(idea))
-    return [{ value: '저자극 설계 (무향·자극 우려 원료 최소화, 피부 자극 시험 진행 희망)', reason: '아이디어 문장에 "저자극"을 직접 적었습니다.', origin: 'USER_PROVIDED' }];
+    return [{ value: '저자극 설계 (무향, 자극 우려 원료 최소화, 피부 자극 시험 진행)', reason: '아이디어 문장에 "저자극"을 직접 적었습니다.', origin: 'USER_PROVIDED' }];
 
   // 2. items mapped to the detailed intake reuse its demo rules, then the other choices as alternatives
   const fromSpec: Candidate[] = [];
@@ -177,6 +212,22 @@ function demoCandidates(key: string, idea: string, intake: Intake, spec: Spec, c
 
   const cands: Candidate[] = (() => {
     switch (key) {
+      case 'exportSafe':
+        return [{ value: markets.length ? `${markets.map(marketLabel).join('·')} 공통 사용 가능 원료로만 구성. 국가별 금지·제한 원료 확인 필요.` : '수출 국가 확정 후 원료 사용 기준 확인 필요.', reason: '수출 희망 국가에서 문제없는 원료로만 구성하기 위한 조건입니다. 실제 사용 가능 여부는 공식 규제 자료로 확인해야 합니다.' }];
+      case 'marketingChannels': {
+        const young = /10대|20대/.test(ages);
+        return [
+          { value: young ? '인스타그램, 틱톡, 인플루언서 시딩' : sensitive ? '인스타그램, 체험단, 검색 광고' : '인스타그램, 유튜브, 체험단', reason: '타깃 연령과 제품 특성에서 정한 홍보 채널 후보입니다.' },
+          { value: '유튜브, 인플루언서 시딩, 검색 광고', reason: '다른 채널 조합 후보입니다.' },
+        ];
+      }
+      case 'launchPromotion': {
+        const ch = splitList(val('channels'))[0] ?? '자사몰';
+        return [
+          { value: `${ch} 런칭 기획전 진행, 체험단 리뷰 선확보 후 ${benefits[0] ?? '핵심'} 효능 중심 콘텐츠 집행.`, reason: '유통채널과 핵심 효능에서 정한 런칭 전략 후보입니다.' },
+          { value: '출시 첫 달 1+1 또는 미니 증정으로 첫 구매 유도, 리뷰 이벤트 병행.', reason: '다른 프로모션 후보입니다.' },
+        ];
+      }
       case 'keywords':
         return [
           { value: [...benefits.slice(0, 2), ...(sensitive ? ['저자극'] : []), productType.split('/')[0], ages].join(', '), reason: '효능·타깃·제품 유형에서 뽑은 키워드 후보입니다.' },
@@ -188,28 +239,28 @@ function demoCandidates(key: string, idea: string, intake: Intake, spec: Spec, c
         return markets.length ? markets.map((m) => ({ value: marketLabel(m), reason: m === markets[0] ? '판매 국가 중 처음 언급한 국가를 우선 출시로 가정했습니다.' : '다른 판매 국가 후보입니다.' })) : [];
       case 'concept':
         return [
-          { value: `${ages} ${sensitive ? '민감 피부도 ' : ''}매일 쓰는 ${benefits.slice(0, 2).join('·') || '데일리'} ${productType}`, reason: '타깃·효능·제품 유형을 한 문장으로 묶었습니다.' },
+          { value: `${ages} ${sensitive ? '민감 피부 ' : ''}타깃 데일리 ${benefits.slice(0, 2).join('·') || '보습'} ${productType}. ${ing('hero')[0] ?? '핵심 원료'} 중심 집중 처방.`, reason: '타깃·효능·제품 유형·대표 원료를 컨셉 문장으로 묶었습니다.' },
           { value: `${benefits[0] ?? '핵심'} 효능에 집중한 고농축 ${productType}`, reason: '효능 집중형 컨셉 후보입니다.' },
           { value: `가볍게 바르는 ${benefits[0] ?? '데일리'} 루틴 ${productType}`, reason: '사용감 중심 컨셉 후보입니다.' },
         ];
       case 'differentiation':
         return [
-          { value: `${sensitive ? '저자극 설계와 ' : ''}${ing('hero')[0] ?? '핵심 원료'} 중심의 단순한 처방`, reason: '효능 원료와 자극 우려를 함께 다룬 차별화 후보입니다.' },
-          { value: '흡수가 빠른 가벼운 제형으로 레이어링 부담을 줄임', reason: '사용감 중심 차별화 후보입니다.' },
+          { value: `${ing('hero')[0] ?? '핵심 원료'} 중심 단순 처방${sensitive ? ', 향료·자극 우려 원료 배제' : ', 가벼운 사용감'}. ${sensitive ? '자극 걱정 없는 ' : ''}매일 ${benefits.slice(0, 2).join('·') || '피부'} 케어.`, reason: '차별점과 소비자에게 전달할 핵심 가치를 함께 정리했습니다.' },
+          { value: `빠른 흡수의 가벼운 제형으로 레이어링 부담 최소화. ${ing('hero')[0] ?? '핵심 원료'}로 완성하는 ${benefits[0] ?? '데일리'} 케어.`, reason: '사용감 중심 차별화 후보입니다.' },
         ];
       case 'usp':
         return [
-          { value: `${benefits[0] ?? '피부'} 고민을 ${sensitive ? '자극 걱정 없이 ' : ''}매일 관리`, reason: '핵심 효능과 타깃 니즈를 한 줄로 정리했습니다.' },
-          { value: `${ing('hero')[0] ?? '핵심 원료'}로 완성하는 ${benefits[0] ?? '데일리'} 케어`, reason: '원료 중심 USP 후보입니다.' },
+          { value: `${sensitive ? '자극 걱정 없는 ' : ''}매일 ${benefits.slice(0, 2).join('·') || '피부'} 케어.`, reason: '핵심 효능과 타깃 니즈를 한 줄로 정리했습니다. 효능 표현은 실증 자료 확인이 필요합니다.' },
+          { value: `${ing('hero')[0] ?? '핵심 원료'}로 완성하는 ${benefits[0] ?? '데일리'} 케어.`, reason: '원료 중심 USP 후보입니다.' },
         ];
       case 'motivation':
-        return [{ value: `${benefits[0] ?? '피부'} 변화를 체감하고 싶지만 ${sensitive ? '자극은 피하고 싶어서' : '복잡한 루틴은 싫어서'}`, reason: '타깃과 효능에서 추정한 구매 동기입니다.' }];
+        return [{ value: `${benefits[0] ?? '피부'} 개선은 원하나 ${sensitive ? '자극·트러블 우려가 큼' : '복잡한 루틴은 원치 않음'}.`, reason: '타깃과 효능에서 추정한 구매 동기입니다. 실제 소비자 데이터로 확인이 필요합니다.' }];
       case 'needs':
-        return [{ value: `${benefits.join('·') || '보습'} 효과, ${sensitive ? '낮은 자극, ' : ''}끈적임 없는 사용감`, reason: '효능·피부 타입에서 추정한 니즈입니다.' }];
+        return [{ value: `${benefits.join('·') || '보습'} 효과 체감, ${sensitive ? '낮은 자극, ' : ''}끈적임 없는 마무리.`, reason: '효능·피부 타입에서 추정한 니즈입니다.' }];
       case 'sensory':
         return [
-          { value: `${val('textureType') || '가벼운'} 제형이 빠르게 흡수되고 ${val('finish') || '촉촉한'} 마무리`, reason: '제형·마무리감 항목과 맞춘 설명입니다.' },
-          { value: '첫 터치는 촉촉하고 마무리는 끈적임 없이 정돈됨', reason: '다른 사용감 표현 후보입니다.' },
+          { value: `${val('textureType') || '가벼운'} 제형, ${val('absorption') === '느림' ? '천천히' : '빠르게'} 흡수 후 ${val('finish') ? splitList(val('finish')).join('·') : '촉촉한'} 마무리.`, reason: '제형·흡수·마무리감 항목과 맞춘 설명입니다.' },
+          { value: '첫 터치 촉촉, 마무리는 끈적임 없이 정돈.', reason: '다른 사용감 표현 후보입니다.' },
         ];
       case 'hero': {
         const h = ing('hero');
@@ -230,11 +281,11 @@ function demoCandidates(key: string, idea: string, intake: Intake, spec: Spec, c
           ...(overseas.length ? [{ value: '판매 국가별 사용 제한 원료 (확인 필요)', reason: '판매 국가 규제 확인 후 정합니다.' }] : []),
         ];
       case 'lowIrritation':
-        return [{ value: sensitive ? '무향·저자극 원료 위주, 피부 자극 시험 진행 희망' : '일반 처방 기준, 자극 우려 원료 최소화', reason: sensitive ? '민감·저자극 조건에서 정한 방향입니다.' : '자극 관련 언급이 없어 기본 방향으로 두었습니다.' }];
+        return [{ value: sensitive ? '무향, 저자극 원료 위주 처방, 피부 자극 시험 진행' : '일반 처방, 자극 우려 원료 최소화', reason: sensitive ? '민감·저자극 조건에서 정한 방향입니다.' : '자극 관련 언급이 없어 기본 방향으로 두었습니다.' }];
       case 'rationale':
-        return [{ value: `${benefits.join('·') || '보습'} 효능과 ${sensitive ? '저자극 조건을' : '사용감을'} 함께 고려해 원료 후보를 골랐습니다`, reason: '원료 후보를 고른 기준입니다.' }];
+        return [{ value: `${benefits.join('·') || '보습'} 효능 원료 중심${sensitive ? ', 자극 우려 원료(고농도 레티노이드·향료) 배제' : ', 사용감 저해 원료 최소화'}.`, reason: '원료 후보를 고른 기준입니다.' }];
       case 'compatibility':
-        return [{ value: `${val('hero') || '대표 원료'}의 ${val('textureType') || '제형'} 내 안정성, 권장 함량, pH 범위를 제조사와 확인`, reason: '원료와 제형 조합은 실제 처방 테스트가 필요합니다.' }];
+        return [{ value: `${val('hero') || '대표 원료'}의 ${val('textureType') || '제형'} 내 안정성·권장 함량·pH 범위 제조사 확인 필요`, reason: '원료와 제형 조합은 실제 처방 테스트가 필요합니다.' }];
       case 'material':
         return [
           { value: val('container') === '에어리스' ? 'PP' : val('container') === '스포이드' ? '유리' : 'PETG 또는 PP', reason: '권장 패키지와 맞는 일반적인 재질 후보입니다.' },
@@ -279,6 +330,151 @@ function demoEntry(key: string, cands: Candidate[], avoid: string[] = []): Bluep
   };
 }
 
+// Longer explanation for every item (Demo Mode). Built from the values decided so far; never states a cost,
+// regulation or test result as confirmed.
+const TEXTURE_NOTE: Record<string, string> = {
+  워터리: '가벼운 발림, 레이어링 용이',
+  밀키: '보습감과 가벼움의 균형',
+  젤: '산뜻한 쿨링감, 지성·복합성 선호',
+  크림: '보습막 형성, 건성 피부 적합',
+  밤: '고체 질감, 부분 집중 보습',
+  오일: '흡수 후 윤기, 유분 보충',
+  캡슐: '시각적 차별화, 캡슐 안정성 확인 필요',
+};
+const CONTAINER_NOTE: Record<string, string> = {
+  에어리스: '효능 원료 산화 방지, 잔량 최소화 목적.',
+  스포이드: '정량 사용 용이. 공기·손 접촉으로 방부 설계 함께 검토.',
+  펌프: '사용 편의·위생. 제형 점도에 맞는 펌프 사양 선정.',
+  튜브: '휴대성·단가 유리.',
+  단지: '크림·밤 제형용. 스패출러 동봉 검토.',
+  스프레이: '분사량·입자 크기 테스트 필요.',
+};
+
+/** A short planning note for every item (Demo Mode), written the way a brand planner notes a plan. */
+function demoDetail(key: string, entries: Record<string, BlueprintEntry>): string {
+  const e = entries[key];
+  if (isUndecided(e)) return key === 'targetProduct' ? '유사하게 가고 싶은 제품명 직접 입력. 입력 시 제형·사용감 비교 기준으로 사용.' : '근거 부족으로 미정. 직접 입력 필요.';
+  const v = e.value;
+  const val = (k: string, d = '') => (isUndecided(entries[k]) ? d : entries[k].value);
+  const ages = splitList(val('ages', '30대')).join('·');
+  const benefits = splitList(val('benefits', '보습'));
+  const b0 = benefits[0];
+  const productType = splitKind(val('productType', '앰플/세럼')).type;
+  const sensitive = /민감|저자극/.test(val('skinTypes') + val('lowIrritation') + val('concerns'));
+  const marketList = marketCodes(val('markets')).map(marketLabel);
+  const overseas = marketCodes(val('markets')).some((m) => m !== 'KR');
+  const regulated = benefits.some((b) => ['탄력', '주름', '미백'].includes(b));
+  switch (key) {
+    case 'category':
+      return '생산 라인·안정성 시험·채널 진열 기준이 되므로 우선 확정.';
+    case 'productType':
+      return `생산 라인·안정성 시험·채널 진열 기준. ${b0} 원료 집중 배합. 1회 사용량·사용 순서 확정 후 용량·용기 결정.`;
+    case 'purpose':
+      return v === '신규 출시' ? '처방 개발부터 안정성 시험까지 전 과정 진행. 일정 제조사 확인 필요.' : '변경 범위(처방·용기·표현) 먼저 정리.';
+    case 'benefits':
+      return regulated ? '효능 2~3개로 압축. 주름·미백·탄력 표현은 기능성 보고·심사 대상 여부 확인 필요.' : '효능 2~3개로 압축. 일반 화장품 범위 표현으로 운영.';
+    case 'concept':
+      return '제품명·패키지 문구·상세페이지 첫 문장의 기준 문장.';
+    case 'differentiation':
+      return `패키지 전면·상세페이지 메인 카피 기준. 경쟁 제품 대비 차이는 Competitors 단계에서 확인, "${b0}" 표현은 실증 자료 확인 필요.`;
+    case 'usp':
+      return `패키지 전면·상세페이지 메인 카피 기준. "${b0}" 표현은 실증 자료 확인 필요.`;
+    case 'keywords':
+      return '검색·SNS·상세페이지 공통 태그. 검색량은 Trend 단계 데이터로 우선순위 확정.';
+    case 'ages':
+      return `${ages} 1차 타깃. 사용감·가격대·채널을 이 연령 기준으로 설정.`;
+    case 'gender':
+      return v === '성별 무관' ? '패키지 색감·향·모델을 성별 중립 톤으로 설정.' : `${v} 기준 패키지 톤·향·카피 설정.`;
+    case 'skinTypes':
+      return sensitive ? '향료·에센셜 오일·고농도 산 배제, 피부 자극 시험 진행.' : '피부 타입별 사용감 편차 최소화(유분감·보습력 조절).';
+    case 'concerns':
+      return '효능 원료 선정과 상세페이지 "추천 대상" 문구의 기준.';
+    case 'usage':
+      return '흡수 속도·메이크업 밀림 확인. 아침 사용 시 광민감 원료 사용 여부 검토.';
+    case 'motivation':
+      return '구매 동기 가설. Consumer 단계 리뷰·소비자 데이터로 검증 후 광고 카피 반영.';
+    case 'needs':
+      return '처방 필수 요구사항으로 제조사 전달, 시제품 평가 체크리스트로 사용.';
+    case 'textureType':
+      return `${TEXTURE_NOTE[v] ?? '목표 사용감 기준'}. 목표 점도·참고 질감 제조사 전달.`;
+    case 'viscosity':
+      return '용기 토출과 직결. 용기 확정 후 토출 테스트로 확인.';
+    case 'absorption':
+      return '시제품 평가 시 도포 직후·1분·5분 후 잔여감 비교.';
+    case 'stickiness':
+      return '보습 원료 함량과 상충. 보습력·사용감 균형 제조사와 조율.';
+    case 'finish':
+      return '오일·실리콘 배합으로 조정. 시제품 2~3종 비교 후 확정.';
+    case 'scent':
+      return v === '무향' ? '원료 고유 냄새 저감 방안 협의. "무향/무향료" 표기 기준 확인 필요.' : '알레르기 유발 향료 성분 표시 기준 국가별 확인 필요.';
+    case 'appearance':
+      return '원료에 따른 변색 가능성. 안정성 시험에서 색 변화 확인.';
+    case 'sensory':
+      return '시제품 평가 기준 문장. 상세페이지 사용감 설명에 활용.';
+    case 'hero':
+      return '제품명·패키지 노출 원료. 권장 함량·단가·효능 근거 원료사 확인 필요.';
+    case 'actives':
+      return '원료 간 pH·안정성 적합성, 판매 국가 사용 제한 확인 필요.';
+    case 'supporting':
+      return '보습·컨디셔닝·제형 안정 목적. 시제품에서 사용감과 함께 조정.';
+    case 'exclude':
+      return '"무첨가" 표기 활용 여부 검토. 표시·광고 기준 확인 필요.';
+    case 'functional':
+      return /없음/.test(v) ? '일반 화장품으로 출시. 기능성 효능 표현은 광고에 사용 불가.' : '기능성 보고·심사 대상 여부, 고시 원료·함량 기준 확인 필요. 심사 기간 일정 반영.';
+    case 'lowIrritation':
+      return '저자극 표방 시 피부 자극 시험 자료 필요. Testing 단계 계획에 포함.';
+    case 'rationale':
+      return '제조사 미팅 시 처방 의도 설명 자료, 원료 변경 시 판단 기준.';
+    case 'compatibility':
+      return '처방 테스트로만 확인 가능. 시제품 단계에서 분리·변색·냄새 변화 확인.';
+    case 'targetPrice':
+      return '원가·용량·채널 수수료 역산 기준. 행사 할인율 포함해 Cost 단계에서 계산.';
+    case 'targetCost':
+      return '판매가 역산 추정치, 실제 견적 아님. 원료·용기·충전·포장비 제조사 견적 확인 필요.';
+    case 'size':
+      return `${productType} 1회 사용량·사용 기간 기준. 동일 가격대 ml당 가격 비교 후 확정.`;
+    case 'firstRun':
+      return '희망 수량. 제조사·용기사 MOQ와 수량별 개당 원가 견적 확인 필요.';
+    case 'container':
+      return `${CONTAINER_NOTE[v] ?? ''} 용기 적합성 시험(변형·흡착·누액) 진행.`.trim();
+    case 'material':
+      return '내용물 적합성·차광·재활용 표시·단가 기준. 용기사 샘플로 확인 필요.';
+    case 'channels':
+      return '채널별 입점 조건·수수료·주력 가격대 확인 후 판매가·용량과 함께 확정.';
+    case 'positioning':
+      return '가격·패키지 디자인·광고 톤 정렬 기준.';
+    case 'benchmark':
+      return '참고 제품 유형. 실제 제품명·가격·전성분은 Competitors 단계에서 확인.';
+    case 'launchTiming':
+      return `처방 개발·안정성 시험·${overseas ? '해외 등록' : '기능성 심사 여부'}에 따라 변동. Timeline 단계에서 역산.`;
+    case 'exportSafe':
+      return '국가별 금지·제한 원료 목록과 대조 후 처방 확정. 공식 규제 자료로 확인 필요.';
+    case 'marketingChannels':
+      return '채널별 콘텐츠 형식·예산 배분은 런칭 3개월 전 확정.';
+    case 'launchPromotion':
+      return '할인율·증정 비용은 원가와 함께 Cost 단계에서 검토.';
+    case 'targetProduct':
+      return '제형·사용감 비교 기준 제품. 시제품 평가 시 함께 비교.';
+    case 'markets':
+      return `수출 희망 국가 기준으로 원료 구성. 국가별 금지·제한 원료, 기능성 분류, 라벨, 등록 절차 확인 필요.${marketList.includes('중국') ? ' 중국은 원료 목록·등록 절차 우선 확인.' : ''}`;
+    case 'priorityMarket':
+      return '첫 출시 국가 규제 기준으로 처방 확정, 이후 국가 확장.';
+    case 'countryIngredients':
+    case 'functionalClass':
+    case 'claims':
+    case 'procedures':
+    case 'extraRegulatory':
+      return '공식 규제 자료로 확인 필요. 결과에 따라 원료·표현·일정 조정.';
+    case 'tests':
+      return '시험 항목·기간·비용은 시험기관·판매 국가 요구사항 확인 필요.';
+    default:
+      return '';
+  }
+}
+const withDetail = (entries: Record<string, BlueprintEntry>) => {
+  for (const k of Object.keys(entries)) entries[k] = { ...entries[k], detail: entries[k].detail || demoDetail(k, entries) || undefined };
+};
+
 function demoRegulatory(markets: string[]): RegulatoryCheck[] {
   return markets.map((m) => ({ country: marketLabel(m), status: 'REVIEW_REQUIRED', items: regItemsOf(m), source: null, checkedAt: null, conditions: [] }));
 }
@@ -288,21 +484,21 @@ export function demoBlueprint(idea: string, notice?: string): Blueprint {
   const spec = ruleSpec(idea, intake);
   const entries: Record<string, BlueprintEntry> = {};
   for (const f of BLUEPRINT_FIELDS) {
-    if (f.parts) continue;
     const e = demoEntry(f.key, demoCandidates(f.key, idea, intake, spec, entries));
     entries[f.key] = e;
     // later demo rules read the values decided so far
-    if (f.spec && e.origin !== 'UNDETERMINED') spec[f.spec] = spec[f.spec]?.mode === 'idea' ? spec[f.spec] : { mode: 'ai', value: f.spec === 'markets' ? marketCodes(e.value) : f.multi ? splitList(e.value) : [e.value] };
+    if (f.key === 'productType' && e.origin !== 'UNDETERMINED') {
+      const { category, type } = splitKind(e.value);
+      if (category && spec.category?.mode !== 'idea') spec.category = { mode: 'ai', value: [category] };
+      if (spec.subtype?.mode !== 'idea') spec.subtype = { mode: 'ai', value: [type] };
+    } else if (f.spec && e.origin !== 'UNDETERMINED') spec[f.spec] = spec[f.spec]?.mode === 'idea' ? spec[f.spec] : { mode: 'ai', value: f.spec === 'markets' ? marketCodes(e.value) : f.multi ? splitList(e.value) : [e.value] };
   }
   // second pass: sentence-type items (concept, USP, ...) read the finished target / formula values
-  for (const f of BLUEPRINT_FIELDS) if (!f.parts && (!f.spec || f.key === 'keywords') && entries[f.key].origin !== 'USER_PROVIDED') entries[f.key] = demoEntry(f.key, demoCandidates(f.key, idea, intake, spec, entries));
+  for (const f of BLUEPRINT_FIELDS) if ((!f.spec || f.key === 'keywords') && entries[f.key].origin !== 'USER_PROVIDED') entries[f.key] = demoEntry(f.key, demoCandidates(f.key, idea, intake, spec, entries));
   // conditions the user stated are never replaced by a suggestion
   for (const e of Object.values(entries)) if (e.origin === 'USER_PROVIDED') e.locked = true;
-  // the first-screen summary items are built from the detailed items
-  syncSummaries(entries, [], true);
-  // insertion order = field order
-  const ordered = Object.fromEntries(BLUEPRINT_FIELDS.map((f) => [f.key, entries[f.key]]));
-  return { idea, mode: 'demo', generatedAt: new Date().toISOString(), productName, entries: ordered, regulatory: demoRegulatory(marketCodes(entries.markets.value)), notice };
+  withDetail(entries);
+  return { idea, mode: 'demo', generatedAt: new Date().toISOString(), productName, entries, regulatory: demoRegulatory(marketCodes(entries.markets.value)), notice };
 }
 
 function demoRefresh(bp: Blueprint, keys: string[], avoid: Record<string, string[]>): BlueprintEntry[] {
@@ -310,155 +506,12 @@ function demoRefresh(bp: Blueprint, keys: string[], avoid: Record<string, string
   const spec = blueprintToSpec({ ...bp, entries: Object.fromEntries(Object.entries(bp.entries).filter(([k]) => !keys.includes(k))) });
   // Re-suggesting never turns a value back into "stated by the user".
   for (const k of Object.keys(spec) as (keyof Spec)[]) if (spec[k]?.mode === 'idea') spec[k] = { ...spec[k]!, mode: 'ai' };
-  return keys.map((k) => {
+  const merged = { ...bp.entries };
+  for (const k of keys) {
     const cands = demoCandidates(k, bp.idea, intake, spec, bp.entries).map((c) => ({ ...c, origin: undefined }));
-    return demoEntry(k, cands, avoid[k]);
-  });
-}
-
-// ── summary items (first screen) ────────────────────────────────────────────
-
-const SUMMARY_KEYS = BLUEPRINT_FIELDS.filter((f) => f.parts).map((f) => f.key);
-export const isSummary = (key: string) => SUMMARY_KEYS.includes(key);
-const summariesOf = (part: string) => SUMMARY_KEYS.filter((k) => blueprintField(k)!.parts!.includes(part));
-
-const STICKY_TEXT: Record<string, string> = { '전혀 허용 안 함': '끈적임 없음', '거의 없어야 함': '끈적임 거의 없음', '약간 허용': '약간의 끈적임 허용', '어느 정도 허용': '끈적임 어느 정도 허용', 상관없음: '끈적임 무관' };
-const ABSORB_TEXT: Record<string, string> = { 빠름: '빠른 흡수', 보통: '보통 흡수', 느림: '천천히 흡수' };
-
-/** One line built from the detailed items (used in Demo Mode, when the AI left it out, and after a detailed item changes). */
-function summaryText(key: string, entries: Record<string, BlueprintEntry>): string {
-  const v = (k: string) => (isUndecided(entries[k]) ? '' : entries[k].value.trim());
-  const join = (xs: string[], sep = ' · ') => xs.filter(Boolean).join(sep);
-  switch (key) {
-    case 'productKind':
-      return join([v('category'), v('productType')]);
-    case 'target':
-      return join([join([splitList(v('ages')).join('·'), v('gender') === '성별 무관' ? '' : v('gender')], ' '), splitList(v('skinTypes')).join('·'), splitList(v('concerns')).join('·')]);
-    case 'texture':
-      return join([v('textureType') && `${v('textureType')} 제형`, ABSORB_TEXT[v('absorption')] ?? v('absorption'), STICKY_TEXT[v('stickiness')] ?? v('stickiness'), v('finish') && `${splitList(v('finish')).join('·')} 마무리`]);
-    case 'keyIngredients':
-      return join([v('hero') && `Hero: ${v('hero')}`, v('actives') && `Active: ${v('actives')}`], ' / ');
-    case 'pack':
-      return join([v('size'), v('container'), v('material')]);
-    case 'pitch': {
-      const kw = splitList(v('keywords')).slice(0, 4).map((k) => `#${k.replace(/\s+/g, '')}`).join(' ');
-      return join([v('usp') && `${v('usp').replace(/[.。]$/, '')}.`, v('differentiation') && `${v('differentiation').replace(/[.。]$/, '')}.`, kw], ' ');
-    }
-    default:
-      return '';
+    merged[k] = demoEntry(k, cands, avoid[k]);
   }
-}
-
-function composeSummary(key: string, entries: Record<string, BlueprintEntry>): BlueprintEntry {
-  const f = blueprintField(key)!;
-  const shown = CORE_SHOWN[key] ?? f.parts!;
-  const decided = shown.filter((k) => !isUndecided(entries[k]));
-  const value = summaryText(key, entries);
-  if (!decided.length || !value) return { fieldKey: key, value: UNDECIDED, origin: 'UNDETERMINED', reason: '관련 상세 항목이 모두 미정이라 정하지 않았습니다.', confidence: 0, needsVerification: true, sourceReferences: [] };
-  const user = decided.filter((k) => entries[k].origin === 'USER_PROVIDED');
-  const allUser = user.length === decided.length && decided.length === shown.length;
-  const label = (k: string) => blueprintField(k)!.label;
-  return {
-    fieldKey: key,
-    value,
-    origin: allUser ? 'USER_PROVIDED' : 'AI_SUGGESTED',
-    reason: allUser ? '아이디어 문장에 직접 적은 조건입니다.' : `${decided.map(label).join('·')} 항목을 한 줄로 묶었습니다.${user.length ? ` 그중 ${user.map(label).join('·')}은(는) 사용자 입력입니다.` : ''}`,
-    confidence: Math.min(...decided.map((k) => entries[k].confidence)),
-    needsVerification: !!f.verify || decided.some((k) => entries[k].needsVerification),
-    sourceReferences: user.length ? ['사용자 입력'] : [],
-    locked: allUser || undefined,
-  };
-}
-
-const optionIn = (text: string, key: string) => (blueprintField(key)?.options ?? []).filter((o) => text.includes(o) || text.includes(o.split(/[·/ ]/)[0]));
-
-/** A summary line the user wrote → the detailed items it states (only what can be read reliably). */
-export function parseSummary(key: string, text: string): Record<string, string> {
-  const t = text.trim();
-  const out: Record<string, string> = {};
-  const set = (k: string, xs: string[]) => {
-    const u = [...new Set(xs)];
-    if (u.length) out[k] = u.join(', ');
-  };
-  switch (key) {
-    case 'productKind':
-      set('category', optionIn(t, 'category').slice(0, 1));
-      set('productType', optionIn(t, 'productType').slice(0, 1));
-      if (!out.productType) {
-        const rest = t.split(/\s*[·>,/]\s*/).filter((x) => x && !(blueprintField('category')!.options ?? []).includes(x));
-        if (rest.length) out.productType = rest[rest.length - 1];
-      }
-      break;
-    case 'target': {
-      const ages = [...t.matchAll(/(\d0)\s*대(\s*이상)?/g)].map((m) => (m[2] ? `${m[1]}대 이상` : `${m[1]}대`));
-      set('ages', ages);
-      set('gender', /남녀|성별\s*무관|젠더리스/.test(t) ? ['성별 무관'] : /여성/.test(t) ? ['여성'] : /남성/.test(t) ? ['남성'] : []);
-      set('skinTypes', [/민감/.test(t) && '민감성', /건성|건조한 피부/.test(t) && '건성', /지성/.test(t) && '지성', /복합/.test(t) && '복합성', /모든 피부|전\s*피부/.test(t) && '모든 피부'].filter(Boolean) as string[]);
-      const concerns = (blueprintField('concerns')!.options ?? []).filter((o) => o.split(/[·\s]/).some((w) => w.length > 1 && w !== '민감' && t.includes(w)));
-      set('concerns', concerns);
-      break;
-    }
-    case 'texture': {
-      set('textureType', optionIn(t, 'textureType').slice(0, 1));
-      const ab = /(빠른|빠르게)\s*흡수|흡수\s*(빠름|빠른)/.test(t) ? '빠름' : /(천천히|느린|느리게)\s*흡수|흡수\s*느림/.test(t) ? '느림' : /흡수\s*보통|보통\s*흡수/.test(t) ? '보통' : '';
-      if (ab) out.absorption = ab;
-      const st = /끈적임\s*(없음|없이|없는|없게|0)|논\s*스티키|안\s*끈적/.test(t) ? '전혀 허용 안 함' : /끈적임\s*(거의|적은|적게|최소)/.test(t) ? '거의 없어야 함' : /약간(의)?\s*끈적/.test(t) ? '약간 허용' : '';
-      if (st) out.stickiness = st;
-      set('finish', optionIn(t, 'finish'));
-      break;
-    }
-    case 'keyIngredients': {
-      const hero = t.match(/hero\s*[:：]\s*([^/|]+)/i)?.[1];
-      const act = t.match(/active\s*[:：]\s*([^/|]+)/i)?.[1];
-      if (hero || act) {
-        if (hero) out.hero = splitList(hero).join(', ');
-        if (act) out.actives = splitList(act).join(', ');
-      } else {
-        const xs = splitList(t.replace(/\s*\+\s*/g, ', '));
-        if (xs.length) out.hero = xs[0];
-        if (xs.length > 1) out.actives = xs.slice(1).join(', ');
-      }
-      break;
-    }
-    case 'pack': {
-      const ml = t.match(/(\d{1,4})\s*(ml|mL|ML|g)/);
-      if (ml) out.size = `${ml[1]}${ml[2].toLowerCase()}`;
-      set('container', optionIn(t, 'container').slice(0, 1));
-      const mat = t.match(/(재활용\s*)?(PETG|PET|PP|PE|PCR|유리|알루미늄|아크릴|종이)[^·,/]*/i)?.[0];
-      if (mat) out.material = mat.trim();
-      break;
-    }
-    case 'pitch': {
-      out.differentiation = t.replace(/#\S+/g, '').trim() || t;
-      const tags = [...t.matchAll(/#(\S+)/g)].map((m) => m[1]);
-      if (tags.length) out.keywords = tags.join(', ');
-      break;
-    }
-  }
-  return out;
-}
-
-const userEntry = (key: string, v: string, prev: BlueprintEntry | undefined, reason = '사용자가 직접 수정한 값입니다.'): BlueprintEntry => ({
-  fieldKey: key,
-  value: v || UNDECIDED,
-  origin: v ? 'USER_PROVIDED' : 'UNDETERMINED',
-  reason: v ? reason : '사용자가 값을 비웠습니다.',
-  confidence: v ? 1 : 0,
-  needsVerification: !!blueprintField(key)?.verify || !v,
-  sourceReferences: v ? ['사용자 입력'] : [],
-  locked: !!v,
-  previous: prev ? [...new Set([...(prev.previous ?? []), prev.value])].slice(-6) : [],
-});
-
-/** Summary items follow their detailed items unless the user wrote or locked the summary. */
-function syncSummaries(entries: Record<string, BlueprintEntry>, changedParts: string[], force = false) {
-  for (const k of SUMMARY_KEYS) {
-    const cur = entries[k];
-    if (cur?.locked && !force) continue;
-    if (!force && !changedParts.some((p) => blueprintField(k)!.parts!.includes(p)) && cur && !isUndecided(cur)) continue;
-    const next = composeSummary(k, entries);
-    entries[k] = { ...next, previous: cur && cur.value !== next.value ? [...new Set([...(cur.previous ?? []), cur.value])].slice(-6) : cur?.previous };
-  }
+  return keys.map((k) => ({ ...merged[k], detail: demoDetail(k, merged) || undefined }));
 }
 
 // ── generation entry points ─────────────────────────────────────────────────
@@ -475,8 +528,7 @@ const normalizeAi = (a: AiAnswer, idea: string, fallbackName: string): Blueprint
   const entries: Record<string, BlueprintEntry> = {};
   for (const e of a.entries) entries[e.fieldKey] = e;
   for (const f of BLUEPRINT_FIELDS)
-    if (!entries[f.key] && !f.parts) entries[f.key] = { fieldKey: f.key, value: UNDECIDED, origin: 'UNDETERMINED', reason: 'AI 응답에 이 항목이 없어 미정으로 두었습니다.', confidence: 0, needsVerification: true, sourceReferences: [] };
-  for (const k of SUMMARY_KEYS) if (!entries[k] || isUndecided(entries[k])) entries[k] = composeSummary(k, entries);
+    if (!entries[f.key]) entries[f.key] = { fieldKey: f.key, value: UNDECIDED, origin: 'UNDETERMINED', reason: 'AI 응답에 이 항목이 없어 미정으로 두었습니다.', confidence: 0, needsVerification: true, sourceReferences: [] };
   for (const e of Object.values(entries)) if (e.origin === 'USER_PROVIDED') e.locked = true;
   const markets = marketCodes(entries.markets.value);
   return { idea, mode: 'ai', model: a.model, generatedAt: new Date().toISOString(), productName: a.productName || fallbackName, entries, regulatory: syncRegulatory(a.regulatory, markets) };
@@ -510,17 +562,13 @@ export async function generateBlueprint(idea: string, onProgress: (p: GenProgres
  * New suggestions for some items ("다시 추천", or refreshing items marked for review).
  * Locked items are skipped; nothing else in the blueprint changes.
  */
-export async function refreshEntries(bp: Blueprint, keys: string[]): Promise<{ bp: Blueprint; error?: string; keys: string[] }> {
-  const open = (k: string) => bp.entries[k] && !bp.entries[k].locked;
-  const asked = keys.filter(open);
-  // a summary item is re-suggested together with the detailed items it is built from (locked ones stay)
-  const todo = [...new Set(asked.flatMap((k) => (isSummary(k) ? [k, ...blueprintField(k)!.parts!.filter(open)] : [k])))];
-  if (!todo.length) return { bp, keys: [] };
+export async function refreshEntries(bp: Blueprint, keys: string[]): Promise<{ bp: Blueprint; error?: string }> {
+  const todo = keys.filter((k) => bp.entries[k] && !bp.entries[k].locked);
+  if (!todo.length) return { bp };
   const avoid = Object.fromEntries(todo.map((k) => [k, [...(bp.entries[k].previous ?? []), bp.entries[k].value].filter((v) => v && v !== UNDECIDED)]));
   let fresh: BlueprintEntry[];
   let regulatory = bp.regulatory;
   let error: string | undefined;
-  const details = todo.filter((k) => !isSummary(k));
   if (bp.mode === 'ai') {
     try {
       const a = await callAi(bp.idea, { keys: todo, context: bp, avoid });
@@ -528,28 +576,20 @@ export async function refreshEntries(bp: Blueprint, keys: string[]): Promise<{ b
       if (a.regulatory.length) regulatory = a.regulatory;
     } catch (e) {
       error = `AI 재추천에 실패해 데모 규칙으로 추천했어요. (${e instanceof Error ? e.message : '오류'})`;
-      fresh = demoRefresh(bp, details, avoid);
+      fresh = demoRefresh(bp, todo, avoid);
     }
   } else {
     await new Promise((r) => window.setTimeout(r, 350));
-    fresh = demoRefresh(bp, details, avoid);
+    fresh = demoRefresh(bp, todo, avoid);
   }
   const entries = { ...bp.entries };
   for (const e of fresh) {
     const prev = entries[e.fieldKey];
-    if (!prev || prev.locked || !todo.includes(e.fieldKey)) continue;
+    if (!prev || prev.locked) continue;
     entries[e.fieldKey] = { ...e, needsVerification: e.needsVerification || !!blueprintField(e.fieldKey)?.verify, previous: [...new Set([...(prev.previous ?? []), prev.value])].slice(-6), review: undefined };
   }
-  // summaries the AI did not answer (or Demo Mode) are rebuilt from the new detailed values
-  const answered = new Set(fresh.map((e) => e.fieldKey));
-  for (const k of todo)
-    if (isSummary(k) && (!answered.has(k) || isUndecided(entries[k]))) {
-      const prev = bp.entries[k];
-      entries[k] = { ...composeSummary(k, entries), locked: undefined, previous: [...new Set([...(prev.previous ?? []), prev.value])].slice(-6) };
-    }
-  syncSummaries(entries, details.filter((k) => !todo.some((s) => isSummary(s) && blueprintField(s)!.parts!.includes(k))));
-  const changed = Object.keys(entries).filter((k) => entries[k] !== bp.entries[k]);
-  return { bp: { ...bp, entries, regulatory: syncRegulatory(regulatory, marketCodes(entries.markets.value)) }, error, keys: changed };
+  const next = { ...bp, entries };
+  return { bp: { ...next, regulatory: syncRegulatory(regulatory, marketCodes(entries.markets.value)) }, error };
 }
 
 /** Whole blueprint again. keepLocked=true keeps every value the user wrote or locked. */
@@ -563,35 +603,27 @@ export async function regenerateBlueprint(bp: Blueprint, keepLocked: boolean, on
 
 // ── editing ─────────────────────────────────────────────────────────────────
 
-/**
- * The user's own value: shown as 사용자 입력, locked, and related items get "재검토 필요" (never overwritten).
- * A summary line is also read into the detailed items it states, so later steps get the user's condition.
- */
+/** The user's own value: shown as 사용자 입력, locked, and related items get "재검토 필요". */
 export function editEntry(bp: Blueprint, key: string, value: string): Blueprint {
   const prev = bp.entries[key];
   const f = blueprintField(key)!;
   const v = value.trim();
   if (prev && prev.value === v) return bp;
   const entries = { ...bp.entries };
-  entries[key] = userEntry(key, v, prev);
-  const changed = [key];
-  const why = `${f.label} 변경`;
-  if (f.parts && v) {
-    const parsed = parseSummary(key, v);
-    for (const p of f.parts) {
-      if (parsed[p]) {
-        if (parsed[p] !== entries[p]?.value) {
-          entries[p] = userEntry(p, parsed[p], entries[p], `"${f.label}"에 직접 적은 값입니다.`);
-          changed.push(p);
-        }
-      } else if (entries[p] && !entries[p].locked) entries[p] = { ...entries[p], review: why };
-    }
-  }
-  // a detailed item changed (from a later step) → summary lines built from it follow, unless the user wrote them
-  if (!f.parts) syncSummaries(entries, [key]);
-  const dependents = new Set(changed.flatMap((k) => [...(BLUEPRINT_DEPENDENTS[k] ?? []), ...(CORE_DEPENDENTS[k] ?? []), ...summariesOf(k).flatMap((s) => (s === key ? [] : CORE_DEPENDENTS[s] ?? []))]));
-  for (const d of dependents) if (entries[d] && !changed.includes(d)) entries[d] = { ...entries[d], review: why };
-  return { ...bp, entries, regulatory: changed.includes('markets') ? syncRegulatory(bp.regulatory, marketCodes(entries.markets.value)) : bp.regulatory };
+  entries[key] = {
+    fieldKey: key,
+    value: v || UNDECIDED,
+    origin: v ? 'USER_PROVIDED' : 'UNDETERMINED',
+    reason: v ? '사용자가 직접 수정한 값입니다.' : '사용자가 값을 비웠습니다.',
+    detail: undefined,
+    confidence: v ? 1 : 0,
+    needsVerification: !!f.verify || !v,
+    sourceReferences: v ? ['사용자 입력'] : [],
+    locked: !!v,
+    previous: prev ? [...new Set([...(prev.previous ?? []), prev.value])].slice(-6) : [],
+  };
+  for (const d of BLUEPRINT_DEPENDENTS[key] ?? []) if (entries[d] && d !== key) entries[d] = { ...entries[d], review: `${f.label} 변경` };
+  return { ...bp, entries, regulatory: key === 'markets' ? syncRegulatory(bp.regulatory, marketCodes(entries.markets.value)) : bp.regulatory };
 }
 
 export const setLocked = (bp: Blueprint, key: string, locked: boolean): Blueprint => ({ ...bp, entries: { ...bp.entries, [key]: { ...bp.entries[key], locked } } });
@@ -620,6 +652,13 @@ export function blueprintToSpec(bp: Blueprint): Spec {
       spec[f.spec] = { mode: 'unknown', value: [] };
       continue;
     }
+    if (f.key === 'productType') {
+      const { category, type } = splitKind(e.value);
+      const mode = e.origin === 'USER_PROVIDED' ? 'user' : bp.mode === 'ai' ? 'idea' : 'ai';
+      if (category) spec.category = { mode, value: [category], reason: e.reason };
+      spec.subtype = { mode, value: [type], reason: e.reason };
+      continue;
+    }
     const value =
       f.spec === 'markets' || f.spec === 'priorityMarket'
         ? marketCodes(e.value)
@@ -645,7 +684,7 @@ export function blueprintToIntake(bp: Blueprint, base: Intake): Intake {
   const e = bp.entries;
   const kind = (k: string) => (e[k]?.origin === 'USER_PROVIDED' ? 'USER_INPUT' : 'AI_ESTIMATE') as Intake['category']['kind'];
   const next = { ...base };
-  if (!isUndecided(e.category)) next.category = { value: isUndecided(e.productType) ? e.category.value : `${e.category.value} > ${e.productType.value}`, kind: kind('category') };
+  if (!isUndecided(e.productType)) next.category = { value: e.productType.value, kind: kind('productType') };
   if (!isUndecided(e.benefits)) next.benefit = { value: splitList(e.benefits.value).join(' / '), kind: kind('benefits') };
   if (!isUndecided(e.ages)) next.target = { value: `${splitList(e.ages.value).join('·')} ${isUndecided(e.gender) ? '' : e.gender.value}`.trim(), kind: kind('ages') };
   if (!isUndecided(e.targetPrice)) next.price = { value: e.targetPrice.value, kind: kind('targetPrice') };
@@ -655,8 +694,8 @@ export function blueprintToIntake(bp: Blueprint, base: Intake): Intake {
   return next;
 }
 
-export function blueprintCounts(bp: Blueprint, keys?: string[]) {
-  const all = keys ? keys.map((k) => bp.entries[k]).filter(Boolean) : Object.values(bp.entries);
+export function blueprintCounts(bp: Blueprint) {
+  const all = Object.values(bp.entries);
   return {
     user: all.filter((e) => e.origin === 'USER_PROVIDED').length,
     ai: all.filter((e) => e.origin === 'AI_SUGGESTED').length,
@@ -677,10 +716,12 @@ export function readBlueprint(raw: unknown): Blueprint | undefined {
     const e = (b.entries as Record<string, Partial<BlueprintEntry>>)[f.key];
     entries[f.key] =
       e && typeof e.value === 'string'
-        ? { fieldKey: f.key, value: e.value, origin: e.origin === 'USER_PROVIDED' || e.origin === 'AI_SUGGESTED' ? e.origin : 'UNDETERMINED', reason: typeof e.reason === 'string' ? e.reason : '', confidence: typeof e.confidence === 'number' ? e.confidence : 0, needsVerification: e.needsVerification !== false, sourceReferences: Array.isArray(e.sourceReferences) ? e.sourceReferences.filter((s) => typeof s === 'string') : [], locked: e.locked === true, review: typeof e.review === 'string' ? e.review : undefined, previous: Array.isArray(e.previous) ? e.previous.filter((s) => typeof s === 'string') : [] }
+        ? { fieldKey: f.key, value: e.value, origin: e.origin === 'USER_PROVIDED' || e.origin === 'AI_SUGGESTED' ? e.origin : 'UNDETERMINED', reason: typeof e.reason === 'string' ? e.reason : '', detail: typeof e.detail === 'string' && e.detail ? e.detail : undefined, confidence: typeof e.confidence === 'number' ? e.confidence : 0, needsVerification: e.needsVerification !== false, sourceReferences: Array.isArray(e.sourceReferences) ? e.sourceReferences.filter((s) => typeof s === 'string') : [], locked: e.locked === true, review: typeof e.review === 'string' ? e.review : undefined, previous: Array.isArray(e.previous) ? e.previous.filter((s) => typeof s === 'string') : [] }
         : { fieldKey: f.key, value: UNDECIDED, origin: 'UNDETERMINED', reason: '', confidence: 0, needsVerification: true, sourceReferences: [] };
   }
-  for (const k of SUMMARY_KEYS) if (!(b.entries as Record<string, unknown>)[k]) entries[k] = composeSummary(k, entries);
+  // blueprints saved before 2026-10-20 kept the category in its own item
+  const oldCat = (b.entries as Record<string, Partial<BlueprintEntry>>).category?.value;
+  if (typeof oldCat === 'string' && oldCat && oldCat !== UNDECIDED && !isUndecided(entries.productType) && !entries.productType.value.includes('>')) entries.productType = { ...entries.productType, value: `${oldCat} > ${entries.productType.value}` };
   const regulatory = Array.isArray(b.regulatory)
     ? b.regulatory.filter((r) => r && typeof r.country === 'string').map((r) => ({ country: r.country, status: r.status === 'VERIFIED' && r.source && r.checkedAt ? ('VERIFIED' as const) : ('REVIEW_REQUIRED' as const), items: Array.isArray(r.items) ? r.items : [], source: r.source ?? null, checkedAt: r.checkedAt ?? null, conditions: Array.isArray(r.conditions) ? r.conditions : [] }))
     : [];
