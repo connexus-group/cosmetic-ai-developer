@@ -11,6 +11,7 @@ import type { KeywordStat } from '@/data/types';
 import { AXIS, GRID, SERIES } from '@/lib/colors';
 import { useAsync } from '@/lib/useAsync';
 import { SpecNotes } from './SpecNotes';
+import { DemoDataNotice, RealMarketData } from '@/components/market/RealMarketData';
 
 export default function Consumer() {
   const { data } = useAsync(() => dataSource.consumer(), 'consumer');
@@ -21,6 +22,8 @@ export default function Consumer() {
     <div className="space-y-6">
       <PageIntro no="04" title="Consumer Analysis" ko="소비자 니즈 분석" question="소비자는 무엇을 좋아하고, 무엇에 불만을 느끼나요?" right={<DemoBadge />} />
       <SpecNotes step="consumer" />
+      <RealMarketData focus="consumer" />
+      <DemoDataNotice />
       {!data ? (
         <AnalyzingState />
       ) : (

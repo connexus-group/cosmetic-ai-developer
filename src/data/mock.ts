@@ -336,18 +336,17 @@ export const PACKAGES: PackageOption[] = [
 // ── Cost defaults (KRW per unit at MOQ 5,000) ───────────────────────────────
 
 export const COST_LABELS = {
-  content: '내용물',
   container: '용기',
-  pump: '펌프·스포이드',
   carton: '단상자',
-  label: '라벨',
-  filling: '충진',
-  packing: '포장',
-  testing: '시험 (단위당 분할)',
-  logistics: '물류',
+  sealLabel: '봉합 라벨',
+  innerBox: '인박스',
+  outerBox: '아웃박스',
+  content: '내용물',
+  processing: '임가공비',
 } as const;
 
-export const COST_BASE = { carton: 250, label: 60, filling: 180, packing: 120, testing: 150, logistics: 90 };
+/** Demo assumptions. 용기 = 용기 + 펌프·스포이드, 임가공비 = 충진 + 포장. */
+export const COST_BASE = { carton: 250, sealLabel: 30, innerBox: 40, outerBox: 60, processing: 300 };
 
 /** unit cost multipliers by MOQ (demo assumption) */
 export const MOQ_FACTOR = {

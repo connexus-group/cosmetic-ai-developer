@@ -8,6 +8,8 @@ import type { Blueprint, IntakeKey, Spec, SpecAnswer, SpecFieldId } from '@/data
 import { BLUEPRINT_FIELDS } from '@/data/blueprintFields';
 import { BlueprintReview } from '@/components/blueprint/BlueprintReview';
 import { blueprintToSpec, refreshEntries } from '@/lib/blueprint';
+import { BlueprintEvidence } from '@/components/market/RealEvidence';
+import { CompetitorEvidence } from '@/components/competitors/CompetitorEvidence';
 import { BlueprintCompact } from '@/components/intake/BlueprintSummary';
 import { IntakeGroup } from '@/components/intake/IntakeWizard';
 import { ProgressRing } from '@/components/charts';
@@ -237,6 +239,8 @@ export default function Overview() {
         <Section title="AI Product Blueprint · 확정한 제품 기획안" subtitle="'이 기획안으로 제품 개발 시작'에서 확정한 기획안이에요. 수정하면 이후 분석 단계에 반영되고 '재검토 필요'가 표시됩니다.">
           {bpNote && <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{bpNote}</div>}
           <BlueprintReview bp={p.blueprint} onChange={(bp) => updateBlueprint(() => bp)} actions={{ busy: bpBusy, onRefresh: refreshBlueprint }} />
+          <BlueprintEvidence bp={p.blueprint} />
+          <CompetitorEvidence />
         </Section>
       )}
 

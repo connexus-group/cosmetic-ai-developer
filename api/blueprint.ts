@@ -30,6 +30,33 @@ interface RequestBody {
   context?: Record<string, { value: string; origin: string }>;
   /** values already suggested for a key; give something different */
   avoid?: Record<string, string[]>;
+  /** competitor products collected from real pages (Firecrawl → Supabase); the only products the model may name */
+  competitors?: CompetitorRef[];
+}
+
+interface CompetitorRef {
+  brand: string;
+  product: string;
+  price: string;
+  size: string;
+  per100Krw: number | null;
+  keyIngredients: string[];
+  usp: string[];
+  url: string;
+  collectedAt: string;
+}
+
+function parseCompetitors(raw: unknown): CompetitorRef[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CompetitorRef[] = [];
+  for (const c of raw.slice(0, 10) as Record<string, unknown>[]) {
+    const url = str(c?.url, 400);
+    if (!/^https:\/\/[^\s]+$/i.test(url)) continue;
+    const list = (v: unknown, n: number) => (Array.isArray(v) ? v.slice(0, n).map((x) => str(x, 80)).filter(Boolean) : []);
+    const per = Number(c.per100Krw);
+    out.push({ brand: str(c.brand, 60), product: str(c.product, 120), price: str(c.price, 40), size: str(c.size, 30), per100Krw: Number.isFinite(per) && per > 0 ? Math.round(per) : null, keyIngredients: list(c.keyIngredients, 6), usp: list(c.usp, 5), url, collectedAt: str(c.collectedAt, 30) });
+  }
+  return out;
 }
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -62,7 +89,7 @@ function parseBody(raw: unknown): RequestBody | null {
   const avoid: RequestBody['avoid'] = {};
   if (b.avoid && typeof b.avoid === 'object')
     for (const [k, v] of Object.entries(b.avoid as Record<string, unknown>)) if (known.has(k) && Array.isArray(v)) avoid[k] = v.slice(0, 8).map((x) => str(x, 200));
-  return { idea, fields, keys: keys?.length ? keys : undefined, context, avoid };
+  return { idea, fields, keys: keys?.length ? keys : undefined, context, avoid, competitors: parseCompetitors(b.competitors) };
 }
 
 const SYSTEM = `당신은 화장품 브랜드의 시니어 상품기획자(Product Planner)입니다. 비전문가 브랜드가 입력한 제품 아이디어를 바탕으로, 제조사에 전달하기 전 단계의 상세 제품 기획 초안을 작성합니다.
@@ -84,7 +111,7 @@ const SYSTEM = `당신은 화장품 브랜드의 시니어 상품기획자(Produ
   - UNDETERMINED: 근거가 부족해 지금 정하면 오해를 부를 항목. value는 "미정" 또는 "확인 필요"로 둡니다.
 - 시장 규모, 원가, 원료 규제, 인증, 시험 적합성은 실제 검증 없이 확정값으로 쓰지 않습니다. 원가는 "추정 범위"로만 쓰고 needsVerification을 true로 둡니다.
 - 국가별 규제는 일반 지식만으로 수출 가능·적합을 판정하지 않습니다. "규제 확인 필요"라고 쓰고, 무엇을 확인해야 하는지만 적습니다.
-- sourceReferences에는 실제로 근거가 된 것만 씁니다: "사용자 입력" 또는 확인해야 할 공식 자료의 이름(예: "중국 NMPA 화장품 원료 목록 확인 필요"). URL이나 존재하지 않는 자료를 만들지 않습니다. 근거가 일반 지식뿐이면 빈 배열로 둡니다.
+- sourceReferences에는 실제로 근거가 된 것만 씁니다: "사용자 입력" 또는 확인해야 할 공식 자료의 이름(예: "중국 NMPA 화장품 원료 목록 확인 필요"). URL이나 존재하지 않는 자료를 만들지 않습니다. 근거가 일반 지식뿐이면 빈 배열로 둡니다. 단, 요청에 "실제 수집한 경쟁제품" 목록이 있으면 그 목록의 제품과 출처 URL만 근거로 인용할 수 있습니다.
 - 실제 브랜드 제품명이나 특허·임상 결과를 사실처럼 만들어내지 않습니다. 벤치마킹은 제품 유형으로 쓰고 확인 필요로 둡니다.
 - confidence는 0~1 사이 숫자로, 아이디어에 근거가 많을수록 높게 씁니다.
 - 선택지가 주어진 항목은 가능하면 선택지 안에서 고르되, 더 맞는 값이 있으면 직접 씁니다.
@@ -103,6 +130,11 @@ function userPrompt(body: RequestBody) {
   return [
     `제품 아이디어:\n"""${body.idea}"""`,
     ctx.length ? `현재 기획 초안의 다른 항목 (이 값들과 일관되게 작성):\n${ctx.join('\n')}` : '',
+    body.competitors?.length
+      ? `실제 수집한 경쟁제품 (공개 제품 페이지에서 Firecrawl로 수집, 페이지에 적힌 값만):\n${body.competitors
+          .map((c, i) => `${i + 1}. ${c.brand} ${c.product} · 가격 ${c.price || '없음'} · 용량 ${c.size || '없음'}${c.per100Krw ? ` · 100ml당 약 ${c.per100Krw.toLocaleString('ko-KR')}원` : ''} · 핵심 원료 ${c.keyIngredients.join(', ') || '없음'} · USP ${c.usp.map((u) => `"${u}"`).join(', ') || '없음'} · 출처 ${c.url} (${c.collectedAt.slice(0, 10)} 수집)`)
+          .join('\n')}\n경쟁·차별화·가격·포지셔닝·벤치마킹 항목은 이 목록을 근거로 쓰고, 근거로 쓴 제품의 출처 URL을 sourceReferences에 그대로 넣습니다. 이 목록에 없는 실제 제품명이나 URL은 쓰지 않습니다. 목록에 없는 값(점유율, 판매량, 리뷰 수 등)은 만들지 않습니다.`
+      : '',
     `작성할 항목 (모든 항목을 fields 배열에 한 번씩 포함):\n${lines.join('\n')}`,
     body.keys
       ? 'regulatory는 판매 국가 관련 항목을 작성한 경우에만 채우고, 아니면 빈 배열로 둡니다. productName은 현재 제품명을 유지할 수 있도록 짧게 씁니다.'
@@ -165,6 +197,7 @@ function sanitize(out: ModelOutput, body: RequestBody) {
   const wanted = new Set(body.keys ?? body.fields.map((f) => f.key));
   const verify = new Set(body.fields.filter((f) => f.verify).map((f) => f.key));
   const seen = new Set<string>();
+  const allowedUrls = new Set((body.competitors ?? []).map((c) => c.url));
   const entries = [];
   for (const f of out.fields ?? []) {
     if (!wanted.has(f.fieldKey) || seen.has(f.fieldKey)) continue;
@@ -178,7 +211,8 @@ function sanitize(out: ModelOutput, body: RequestBody) {
       reason: String(f.reason ?? '').slice(0, 600),
       confidence: Math.max(0, Math.min(1, Number(f.confidence) || 0)),
       needsVerification: verify.has(f.fieldKey) || origin === 'UNDETERMINED' || f.needsVerification === true,
-      sourceReferences: (f.sourceReferences ?? []).map((s) => String(s).slice(0, 200)).filter((s) => !/https?:\/\//i.test(s)).slice(0, 5),
+      // URLs are kept only when they are one of the collected competitor pages sent with the request
+      sourceReferences: (f.sourceReferences ?? []).map((s) => String(s).slice(0, 400).trim()).filter((s) => !/https?:\/\//i.test(s) || allowedUrls.has(s)).slice(0, 5),
     });
   }
   const regulatory = (out.regulatory ?? []).slice(0, 12).map((r) => ({

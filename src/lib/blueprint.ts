@@ -71,6 +71,26 @@ interface AiAnswer {
 
 const fieldPayload = (f: BlueprintFieldDef) => ({ key: f.key, label: f.label, guide: f.guide, options: f.options, multi: f.multi, verify: f.verify });
 
+/**
+ * Collected competitor products (Competitors screen) sent with AI refresh requests so the model can
+ * cite them. Set by the competitor evidence panel; empty until real products are collected.
+ */
+export interface CompetitorContext {
+  brand: string;
+  product: string;
+  price: string;
+  size: string;
+  per100Krw: number | null;
+  keyIngredients: string[];
+  usp: string[];
+  url: string;
+  collectedAt: string;
+}
+let competitorContext: CompetitorContext[] = [];
+export const setCompetitorContext = (list: CompetitorContext[]) => {
+  competitorContext = list.slice(0, 10);
+};
+
 async function callAi(idea: string, opts: { keys?: string[]; context?: Blueprint; avoid?: Record<string, string[]> } = {}): Promise<AiAnswer> {
   const ctrl = new AbortController();
   const timer = window.setTimeout(() => ctrl.abort(), 290_000);
@@ -85,6 +105,7 @@ async function callAi(idea: string, opts: { keys?: string[]; context?: Blueprint
         keys: opts.keys,
         context: opts.context ? Object.fromEntries(Object.values(opts.context.entries).map((e) => [e.fieldKey, { value: e.value, origin: e.origin }])) : undefined,
         avoid: opts.avoid,
+        competitors: competitorContext.length ? competitorContext : undefined,
       }),
     });
     const j = (await r.json().catch(() => null)) as (AiAnswer & { message?: string }) | null;

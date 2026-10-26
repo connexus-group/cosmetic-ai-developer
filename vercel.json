@@ -32,6 +32,15 @@
   "functions": {
     "api/blueprint.ts": {
       "maxDuration": 300
+    },
+    "api/competitor-products.ts": {
+      "maxDuration": 120
+    },
+    "api/competitor-discovery.ts": {
+      "maxDuration": 300
+    },
+    "api/packaging.ts": {
+      "maxDuration": 120
     }
   }
 }
