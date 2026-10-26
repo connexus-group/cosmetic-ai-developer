@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.json && vite build",
-    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.api.json && vite build",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.api.json",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.48.0",
     "react": "^19.3.0",
