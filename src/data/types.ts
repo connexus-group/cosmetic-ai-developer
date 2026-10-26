@@ -109,7 +109,7 @@ export type FormulaId = 'milky' | 'gel' | 'capsule';
 export type PackageId = 'airless' | 'dropper' | 'pump';
 export type Moq = 3000 | 5000 | 10000;
 
-export type CostKey = 'content' | 'container' | 'pump' | 'carton' | 'label' | 'filling' | 'packing' | 'testing' | 'logistics';
+export type CostKey = 'container' | 'carton' | 'sealLabel' | 'innerBox' | 'outerBox' | 'content' | 'processing';
 
 export interface Project {
   id: string;
