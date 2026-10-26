@@ -12,6 +12,7 @@ import { effectiveConcept, formulaOf, krw } from '@/lib/engine';
 import { useAsync } from '@/lib/useAsync';
 import { useProject } from '../ProjectLayout';
 import { PreviewBanner } from './PreviewBanner';
+import { PackagingStudio } from '@/components/packaging/PackagingStudio';
 import { MatchTag, SpecNotes } from './SpecNotes';
 import { signals } from '@/lib/spec';
 
@@ -61,6 +62,11 @@ export default function Packaging() {
       <SpecNotes step="packaging" />
       {!p.conceptId && <PreviewBanner projectId={p.id} step="concept" what="제품 컨셉" />}
       {p.conceptId && !p.formulaId && <PreviewBanner projectId={p.id} step="formula" what="제형" />}
+      <PackagingStudio p={p} update={update} />
+      <div className="flex items-center gap-2 pt-2 text-[11px] font-semibold tracking-[0.18em] text-slate-400">
+        <span>기존 용기 추천 · OPTION A / B / C</span>
+        <span className="h-px flex-1 bg-ink-100" />
+      </div>
       {!data ? (
         <AnalyzingState />
       ) : (

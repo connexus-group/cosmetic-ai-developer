@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { DEFAULT_TESTS } from '@/data/mock';
 import type { Blueprint, ClarifyAnswer, Intake, Project, Spec, StepId } from '@/data/types';
 import { readBlueprint } from '@/lib/blueprint';
-import { DEFAULT_CLAIM_COPY } from '@/lib/engine';
+import { DEFAULT_CLAIM_COPY, readCostOverrides } from '@/lib/engine';
 import { moqFrom, parseWon, signals, specFromAnswers } from '@/lib/spec';
 
 /**
@@ -39,7 +39,6 @@ function normalize(raw: unknown): Project | null {
     moq: 5000,
     retailPrice: 32000,
     channelFeeRate: 0.35,
-    costOverrides: {},
     tests: { ...DEFAULT_TESTS },
     checklist: {},
     claimCopy: DEFAULT_CLAIM_COPY,
@@ -49,6 +48,7 @@ function normalize(raw: unknown): Project | null {
     createdAt: t,
     updatedAt: typeof p.updatedAt === 'string' ? p.updatedAt : t,
     changed: { intake: t, ...(p.changed ?? {}) },
+    costOverrides: readCostOverrides(p.costOverrides),
     blueprint: readBlueprint(p.blueprint),
     spec: p.spec && typeof p.spec === 'object' ? p.spec : specFromAnswers(p.answers && typeof p.answers === 'object' ? p.answers : {}),
     intake,

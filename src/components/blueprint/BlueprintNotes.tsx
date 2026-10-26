@@ -8,18 +8,18 @@ import { OriginBadges } from './BlueprintReview';
 /** Which confirmed AI Product Blueprint items each analysis step builds on. */
 const STEP_KEYS: Partial<Record<StepId, string[]>> = {
   market: ['ages', 'gender', 'markets', 'channels', 'positioning'],
-  competitors: ['benchmark', 'targetPrice', 'differentiation', 'positioning'],
-  consumer: ['needs', 'motivation', 'concerns', 'skinTypes', 'usage'],
+  competitors: ['benchmark', 'targetPrice', 'differentiation', 'positioning', 'targetProduct'],
+  consumer: ['needs', 'concerns', 'skinTypes'],
   trend: ['keywords', 'hero', 'benefits'],
-  opportunity: ['differentiation', 'usp', 'positioning'],
-  concept: ['concept', 'usp', 'keywords', 'benefits'],
-  formula: ['textureType', 'viscosity', 'absorption', 'stickiness', 'finish', 'scent', 'appearance', 'sensory'],
-  ingredients: ['hero', 'actives', 'supporting', 'exclude', 'functional', 'lowIrritation', 'rationale', 'compatibility', 'countryIngredients'],
+  opportunity: ['differentiation', 'positioning'],
+  concept: ['concept', 'differentiation', 'keywords', 'benefits'],
+  formula: ['textureType', 'absorption', 'stickiness', 'finish', 'scent', 'appearance', 'sensory', 'targetProduct'],
+  ingredients: ['hero', 'supporting', 'exclude', 'functional', 'lowIrritation', 'markets', 'exportSafe'],
   packaging: ['container', 'material', 'size'],
   cost: ['targetCost', 'targetPrice', 'firstRun', 'container'],
-  regulation: ['markets', 'functionalClass', 'claims', 'procedures', 'extraRegulatory'],
-  testing: ['tests', 'lowIrritation', 'skinTypes'],
-  timeline: ['launchTiming', 'procedures', 'markets'],
+  regulation: ['markets', 'exportSafe', 'functional'],
+  testing: ['lowIrritation', 'skinTypes'],
+  timeline: ['launchTiming', 'markets'],
 };
 
 export function BlueprintNotes({ project: p, step }: { project: Project; step: StepId }) {

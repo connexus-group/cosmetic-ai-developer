@@ -101,9 +101,22 @@ export function currentStep(p: Project): (typeof STEPS)[number] {
 
 // ── Cost ────────────────────────────────────────────────────────────────────
 
-export const COST_KEYS: CostKey[] = ['content', 'container', 'pump', 'carton', 'label', 'filling', 'packing', 'testing', 'logistics'];
-const PACKAGING_KEYS: CostKey[] = ['container', 'pump', 'carton', 'label'];
-const PROCESS_KEYS: CostKey[] = ['filling', 'packing'];
+export const COST_KEYS: CostKey[] = ['container', 'carton', 'sealLabel', 'innerBox', 'outerBox', 'content', 'processing'];
+const PACKAGING_KEYS: CostKey[] = ['container', 'carton', 'sealLabel', 'innerBox', 'outerBox'];
+const PROCESS_KEYS: CostKey[] = ['processing'];
+export const VAT_RATE = 0.1;
+
+/** Keeps only saved overrides for current cost lines; values for removed lines are dropped. */
+export function readCostOverrides(raw: unknown): Partial<Record<CostKey, number>> {
+  if (!raw || typeof raw !== 'object') return {};
+  const src = raw as Record<string, unknown>;
+  const out: Partial<Record<CostKey, number>> = {};
+  for (const k of COST_KEYS) {
+    const v = src[k];
+    if (typeof v === 'number' && Number.isFinite(v) && v >= 0) out[k] = v;
+  }
+  return out;
+}
 
 /** Default unit cost at MOQ 5,000 for each line, derived from the chosen formula and package. */
 export function costDefaults(p: Project): Record<CostKey, number> {
@@ -111,14 +124,15 @@ export function costDefaults(p: Project): Record<CostKey, number> {
   const pk = packageOf(p) ?? PACKAGES[0];
   const concept = conceptOf(p);
   const contentAdj = concept?.id === 'C' ? 1.6 : concept?.id === 'A' ? 0.9 : 1;
-  return { content: Math.round(f.costPerUnit * contentAdj), container: pk.unitCost, pump: pk.pumpCost, ...COST_BASE };
+  return { container: pk.unitCost + pk.pumpCost, content: Math.round(f.costPerUnit * contentAdj), ...COST_BASE };
 }
 
 export function costLines(p: Project, moq = p.moq) {
   const base = costDefaults(p);
   const factor = MOQ_FACTOR[moq];
+  const overrides = readCostOverrides(p.costOverrides);
   return COST_KEYS.map((key) => {
-    const userValue = p.costOverrides[key];
+    const userValue = overrides[key];
     const at5000 = userValue ?? base[key];
     const mult = key === 'content' ? factor.content : PACKAGING_KEYS.includes(key) ? factor.packaging : PROCESS_KEYS.includes(key) ? factor.process : 1;
     return { key, at5000, value: Math.round(at5000 * mult), edited: userValue !== undefined };
@@ -135,6 +149,7 @@ export function costSummary(p: Project, moq = p.moq) {
   return {
     lines,
     total,
+    totalWithVat: Math.round(total * (1 + VAT_RATE)),
     costRatio: total / retail,
     grossMargin: (supply - total) / supply,
     netMargin: (net - total) / supply,

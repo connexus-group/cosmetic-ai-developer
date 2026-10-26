@@ -1,8 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import clsx from 'clsx';
 import { AlertTriangle, Check, ChevronDown, Cpu, FlaskConical, Lightbulb, Loader2, Lock, Pencil, RefreshCw, Sparkles, Unlock } from 'lucide-react';
-import { BLUEPRINT_FIELDS, type BlueprintFieldDef } from '@/data/blueprintFields';
-import { SPEC_GROUPS } from '@/data/intakeSpec';
+import { BLUEPRINT_FIELDS, BLUEPRINT_GROUPS, CELL_LABELS, type BlueprintFieldDef } from '@/data/blueprintFields';
 import type { Blueprint, BlueprintEntry, SpecGroupId } from '@/data/types';
 import { Button, Card } from '@/components/ui';
 import { blueprintCounts, editEntry, isUndecided, keepAsIs, setLocked, splitList } from '@/lib/blueprint';
@@ -69,7 +68,7 @@ export function BlueprintReview({ bp, onChange, actions, footer }: { bp: Bluepri
       else n.add(g);
       return n;
     });
-  const allOpen = open.size === SPEC_GROUPS.length;
+  const allOpen = open.size === BLUEPRINT_GROUPS.length;
 
   return (
     <div className="space-y-4">
@@ -123,14 +122,14 @@ export function BlueprintReview({ bp, onChange, actions, footer }: { bp: Bluepri
             </div>
           )}
           <div className="flex justify-end">
-            <button type="button" onClick={() => setOpen(allOpen ? new Set() : new Set(SPEC_GROUPS.map((g) => g.id)))} className="text-xs text-slate-500 underline-offset-2 hover:text-ink-900 hover:underline">
+            <button type="button" onClick={() => setOpen(allOpen ? new Set() : new Set(BLUEPRINT_GROUPS.map((g) => g.id)))} className="text-xs text-slate-500 underline-offset-2 hover:text-ink-900 hover:underline">
               {allOpen ? '모두 접기' : '모두 펼치기'}
             </button>
           </div>
         </div>
       </Card>
 
-      {SPEC_GROUPS.map((g) => {
+      {BLUEPRINT_GROUPS.map((g) => {
         const fields = BLUEPRINT_FIELDS.filter((f) => f.group === g.id);
         const isOpen = open.has(g.id);
         const groupReview = fields.filter((f) => bp.entries[f.key]?.review).length;
@@ -162,16 +161,118 @@ export function BlueprintReview({ bp, onChange, actions, footer }: { bp: Bluepri
             </button>
             {isOpen && (
               <div className="divide-y divide-ink-50 border-t border-ink-50">
-                {fields.map((f) => (
-                  <EntryRow key={f.key} f={f} bp={bp} onChange={onChange} actions={actions} />
+                {fields
+                  .filter((f) => !f.cell)
+                  .map((f) => (
+                    <EntryRow key={f.key} f={f} bp={bp} onChange={onChange} actions={actions} />
+                  ))}
+                {[...new Set(fields.filter((f) => f.cell).map((f) => f.cell!))].map((cell) => (
+                  <CellRow key={cell} cell={cell} fields={fields.filter((f) => f.cell === cell)} bp={bp} onChange={onChange} actions={actions} />
                 ))}
-                {g.id === 'global' && <RegulatoryTable bp={bp} />}
               </div>
             )}
           </Card>
         );
       })}
       {footer}
+    </div>
+  );
+}
+
+/** Several short items in one row (e.g. price, cost, volume, MOQ, package, benchmark, launch). */
+function CellRow({ cell, fields, bp, onChange, actions }: { cell: string; fields: BlueprintFieldDef[]; bp: Blueprint; onChange: (bp: Blueprint) => void; actions: BlueprintActions }) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [why, setWhy] = useState(false);
+  const open = fields.filter((f) => !bp.entries[f.key]?.locked).map((f) => f.key);
+  const busy = fields.some((f) => actions.busy.has(f.key));
+  const save = (k: string) => {
+    onChange(editEntry(bp, k, draft));
+    setEditing(null);
+  };
+  return (
+    <div id={`bp-cell-${cell}`} className={clsx('px-5 py-4', busy && 'opacity-60')}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
+        <div className="w-full shrink-0 sm:w-44">
+          <div className="text-[13px] font-semibold text-ink-900">{CELL_LABELS[cell] ?? cell}</div>
+          <div className="mt-0.5 text-[11px] text-slate-400">{fields.length}개 항목 · 값을 눌러 수정</div>
+        </div>
+        <div className="min-w-0 flex-1">
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-ink-100 ring-1 ring-ink-100 lg:grid-cols-4">
+            {fields.map((f) => {
+              const e = bp.entries[f.key];
+              if (!e) return null;
+              const undecided = isUndecided(e);
+              return (
+                <div key={f.key} id={`bp-${f.key}`} data-origin={e.origin} className={clsx('min-w-0 bg-white px-3 py-2', e.review && 'bg-sky-50/60')}>
+                  <dt className="flex flex-wrap items-center gap-1 text-[11px] text-slate-500">
+                    {f.label}
+                    {e.origin === 'USER_PROVIDED' && <span className="rounded bg-ink-900 px-1 text-[9px] font-semibold text-white">사용자</span>}
+                    {e.needsVerification && !undecided && <span className="rounded bg-rose-50 px-1 text-[9px] font-semibold text-rose-700">확인 필요</span>}
+                    {e.review && <span className="rounded bg-sky-100 px-1 text-[9px] font-semibold text-sky-800">재검토</span>}
+                  </dt>
+                  <dd className="mt-0.5">
+                    {editing === f.key ? (
+                      <input
+                        autoFocus
+                        value={draft}
+                        list={f.options ? `opts-${f.key}` : undefined}
+                        aria-label={`${f.label} 수정`}
+                        onChange={(ev) => setDraft(ev.target.value)}
+                        onBlur={() => save(f.key)}
+                        onKeyDown={(ev) => {
+                          if (ev.key === 'Enter' && !ev.nativeEvent.isComposing) save(f.key);
+                          if (ev.key === 'Escape') setEditing(null);
+                        }}
+                        className="w-full rounded border border-ink-200 px-1.5 py-0.5 text-[13px] outline-none focus:border-ink-500"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        title={e.detail || e.reason}
+                        onClick={() => {
+                          setDraft(undecided ? '' : e.value);
+                          setEditing(f.key);
+                        }}
+                        className={clsx('w-full text-left text-[13px] leading-snug hover:underline', undecided ? 'text-slate-400' : 'text-ink-900')}
+                      >
+                        {undecided ? '미정' : e.value}
+                      </button>
+                    )}
+                    {f.options && (
+                      <datalist id={`opts-${f.key}`}>
+                        {f.options.map((o) => (
+                          <option key={o} value={o} />
+                        ))}
+                      </datalist>
+                    )}
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+          {why && (
+            <ul className="mt-2 space-y-1 rounded-lg bg-ink-50/70 px-3 py-2 text-[12px] leading-relaxed text-ink-800">
+              {fields.map((f) => {
+                const e = bp.entries[f.key];
+                return e ? (
+                  <li key={f.key}>
+                    <b>{f.label}</b> · {e.detail || e.reason || '설명 없음'}
+                  </li>
+                ) : null;
+              })}
+            </ul>
+          )}
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-1 sm:flex-col sm:items-stretch">
+          <RowButton onClick={() => setWhy((w) => !w)} icon={<Lightbulb size={12} />} active={why}>
+            {bp.mode === 'ai' ? 'AI 설명' : '데모 설명'}
+          </RowButton>
+          <RowButton onClick={() => actions.onRefresh(open)} icon={busy ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} disabled={busy || !open.length}>
+            다시 추천
+          </RowButton>
+        </div>
+      </div>
     </div>
   );
 }
@@ -250,7 +351,7 @@ function EntryRow({ f, bp, onChange, actions }: { f: BlueprintFieldDef; bp: Blue
               </div>
             </div>
           ) : undecided ? (
-            <div className="text-sm text-slate-400">{e.value && e.value !== '미정' ? e.value : '미정 · 근거가 부족해 아직 정하지 않았어요'}</div>
+            <div className="text-sm text-slate-400">{e.value && e.value !== '미정' ? e.value : f.key === 'targetProduct' ? '미정 · 비슷하게 가고 싶은 제품명을 입력해 주세요' : '미정 · 근거가 부족해 아직 정하지 않았어요'}</div>
           ) : f.multi && values.length > 1 ? (
             <div className="flex flex-wrap gap-1.5">
               {values.map((v) => (
